@@ -1,0 +1,9 @@
+caddy-data/
+caddy-config/
+data/
+logs/
+node_modules/
+frontend/.svelte-kit/
+frontend/node_modules/
+backend/node_modules/
+backend/public/

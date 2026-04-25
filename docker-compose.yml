@@ -1,0 +1,25 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    network_mode: host
+    volumes:
+      - ./logs:/logs
+      - ./caddy-data:/data
+      - ./caddy-config:/config
+    restart: unless-stopped
+
+  backend:
+    build: .
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data:/app/data
+      - ./logs:/logs
+    environment:
+      - PORT=3001
+      - CADDY_ADMIN=http://localhost:2019
+      - DB_PATH=/app/data/proxy.db
+      - LOG_PATH=/logs/access.log
+    restart: unless-stopped
+    depends_on:
+      - caddy
