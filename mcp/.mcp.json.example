@@ -1,4 +1,5 @@
 {
+  "_comment": "Drop this file at the REPO ROOT as .mcp.json (project-scoped). Claude Code does NOT read ~/.claude/.mcp.json. For user-wide registration, prefer: claude mcp add gantry -s user --env GANTRY_SERVICES_DIR=$HOME/services -- node /absolute/path/to/Container-Gantry/mcp/index.js",
   "mcpServers": {
     "gantry": {
       "command": "node",

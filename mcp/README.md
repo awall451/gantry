@@ -9,32 +9,55 @@ MCP server that exposes Gantry's deploy, route, and lifecycle operations to an M
 - `git`, `docker`, `curl`, `ss`, `find` on `PATH`
 - Docker socket access for the user running this MCP
 
-## Install
+## Install (recommended)
+
+One-shot installer:
 
 ```bash
 cd mcp
-npm install
+./setup.sh
 ```
+
+What it does:
+
+1. Verifies `node` 18+, `npm`, `claude`, `git`, `docker`, `curl`, `ss`, `find` on `PATH`
+2. Probes the Docker daemon and Gantry backend
+3. Runs `npm install` in `mcp/` (skips if `node_modules` already populated)
+4. Creates `$GANTRY_SERVICES_DIR` (default `~/services`)
+5. Removes stale `~/.claude/.mcp.json` if found (asks first)
+6. Registers the MCP user-wide via `claude mcp add ... -s user`
+7. Prints `claude mcp list` to verify
+
+Then restart Claude Code.
 
 ## Configure
 
-Two env vars, both optional:
+Two env vars, both optional. The installer reads them at install time and bakes them into the registration:
 
 | Var | Default | Purpose |
 |-----|---------|---------|
 | `GANTRY_SERVICES_DIR` | `~/services` | Where `deploy_service` clones repos and where `update_service`/`remove_service`/`list_services` look |
 | `GANTRY_API` | `http://localhost:3001` | Gantry backend base URL |
 
-The services dir is auto-created on startup.
+To override, prepend before `./setup.sh`:
 
-### Register with Claude Code
+```bash
+GANTRY_SERVICES_DIR=/srv/apps ./setup.sh
+```
 
-Copy `mcp/.mcp.json.example` to either:
+To re-register later (e.g. after moving the repo): rerun `./setup.sh` — idempotent.
 
-- `~/.claude/.mcp.json` (user-wide), or
-- `<project>/.mcp.json` (per-project, checked in)
+## Manual install (if you can't use the script)
 
-Edit the absolute path and `GANTRY_SERVICES_DIR` to taste. Restart Claude Code.
+```bash
+cd mcp
+npm install
+claude mcp add gantry -s user \
+  --env GANTRY_SERVICES_DIR=$HOME/services \
+  -- node "$(pwd)/index.js"
+```
+
+> Claude Code does **not** read `~/.claude/.mcp.json`. The user-scoped store is `~/.claude.json` under the `mcpServers` key — `claude mcp add` writes there for you. For project-scoped registration, drop `.mcp.json` at the **repo root** (see `.mcp.json.example`).
 
 ## Tools
 
