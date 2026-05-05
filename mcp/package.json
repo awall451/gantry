@@ -1,0 +1,12 @@
+{
+  "name": "gantry-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Gantry — deploy, update, and manage local container services",
+  "type": "module",
+  "bin": {
+    "gantry-mcp": "./index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  }
+}
