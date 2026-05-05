@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "gantry": {
+      "command": "node",
+      "args": ["/absolute/path/to/Container-Gantry/mcp/index.js"],
+      "env": {
+        "GANTRY_SERVICES_DIR": "/home/<you>/services",
+        "GANTRY_API": "http://localhost:3001"
+      }
+    }
+  }
+}
