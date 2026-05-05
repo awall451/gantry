@@ -85,3 +85,34 @@ claude mcp add gantry -s user \
 - Compose project name matching uses `==`, `name-`, or `name_` prefix. Exotic Compose project names that don't match this pattern won't be auto-detected by `deploy_service`/`remove_service` route lookups.
 - `deploy_service` waits a fixed 3s for Docker events to flow into Gantry's watcher before checking routes. Slow hosts may need a manual `list_routes` follow-up.
 - Gantry only auto-discovers routes for containers with a published port. Composed services on internal networks won't appear in `list_routes`.
+
+## Future: slash-command prompts
+
+Today the MCP exposes **tools only**. They fire when the agent decides to call them based on natural-language intent ("list all gantry routes" → agent calls `list_routes`). Tools do not appear as slash commands.
+
+MCP also supports a second primitive — **prompts** — which *do* surface as `/mcp__gantry__<name>` in Claude Code's slash-command menu. Tools and prompts coexist on the same server; adding prompts does not change tool behavior. A prompt is a pure text template (no HTTP, no shell) that, when invoked, injects a rendered string into the chat — the agent then calls the underlying tool to do the real work.
+
+Reasonable candidates to wrap as prompts:
+
+| Prompt | Renders to | Args |
+|--------|------------|------|
+| `routes` | "List all Gantry proxy routes" | none |
+| `services` | "List all services in `$GANTRY_SERVICES_DIR` with their container status" | none |
+| `ports` | "Show all listening TCP ports on this host" | none |
+| `status` | "Check status of `<host>.localhost` (and optionally `localhost:<port>`)" | `hostname`, optional `port` |
+
+`deploy_service` / `update_service` / `remove_service` are poor prompt candidates — multi-arg, side-effectful, and the value of typing the command is small versus describing intent in chat.
+
+Implementation sketch (when we get there):
+
+```js
+server.registerPrompt(
+  "routes",
+  { title: "List Gantry routes", description: "Show all proxy routes", argsSchema: {} },
+  async () => ({
+    messages: [{ role: "user", content: { type: "text", text: "List all Gantry proxy routes." } }],
+  })
+);
+```
+
+One commit per prompt batch, behind a follow-up PR. No backend or tool changes required.
