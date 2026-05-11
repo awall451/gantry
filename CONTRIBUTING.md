@@ -47,16 +47,14 @@ npm run test:frontend
 
 ## First-time setup
 
-Node 20 is required (matches the Dockerfile target). `.nvmrc` is checked in:
+Node 20 is the recommended baseline (matches the Dockerfile target). `.nvmrc` is checked in. Newer Node (22, 24, 25) also works since `better-sqlite3@^12` supports `20.x || 22.x || 23.x || 24.x || 25.x`.
 
 ```bash
-nvm use         # or `fnm use`
+nvm use         # or `fnm use` — optional, only if your default Node is outside the supported range
 npm install                   # root: husky + lint-staged
 npm --prefix backend install
 npm --prefix frontend install
 ```
-
-> Newer Node versions (22–25) currently fail to build the `better-sqlite3` 9.x native module. Tracked separately from the TDD setup; until that bump lands, stay on Node 20.
 
 `npm install` at the root runs `husky` via the `prepare` script and registers `.husky/pre-commit` + `.husky/pre-push`.
 
