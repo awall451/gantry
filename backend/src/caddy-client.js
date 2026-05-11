@@ -72,4 +72,4 @@ async function isHealthy() {
   }
 }
 
-module.exports = { pushConfig, isHealthy };
+module.exports = { buildConfig, pushConfig, isHealthy };
