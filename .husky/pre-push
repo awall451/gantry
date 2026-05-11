@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Tier 2: Docker integration tests. Skip if no Docker socket available.
+if [ ! -S /var/run/docker.sock ]; then
+  echo "[pre-push] No Docker socket — skipping Tier 2 integration tests."
+  exit 0
+fi
+
+if [ -d backend/tests/integration ] && find backend/tests/integration -name '*.test.js' -print -quit | grep -q .; then
+  echo "[pre-push] Running backend Tier 2 integration tests..."
+  npm --prefix backend run test:integration
+else
+  echo "[pre-push] No integration tests yet — skipping."
+fi

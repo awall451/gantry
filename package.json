@@ -1,0 +1,22 @@
+{
+  "name": "gantry",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "test:backend": "npm --prefix backend test",
+    "test:frontend": "npm --prefix frontend test"
+  },
+  "devDependencies": {
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0"
+  },
+  "lint-staged": {
+    "backend/src/**/*.js": [
+      "bash -c 'cd backend && npx vitest related --run \"$@\"' --"
+    ],
+    "frontend/src/**/*.{js,svelte}": [
+      "bash -c 'cd frontend && npx vitest related --run \"$@\"' --"
+    ]
+  }
+}

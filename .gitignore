@@ -10,3 +10,10 @@ frontend/build/
 backend/public/
 .env
 .claude/
+
+# Tests
+coverage/
+*.db-journal
+backend/coverage/
+frontend/coverage/
+
