@@ -4,7 +4,12 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run --dir tests/unit",
+    "test:integration": "vitest run --dir tests/integration",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "better-sqlite3": "^9.4.3",
@@ -14,6 +19,9 @@
     "ws": "^8.16.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "@vitest/coverage-v8": "^2.1.0",
+    "nodemon": "^3.1.0",
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.0"
   }
 }
