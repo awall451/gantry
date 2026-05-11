@@ -1,13 +1,12 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/proxy.db');
-
 let db;
 
 function getDb() {
   if (!db) {
-    db = new Database(DB_PATH);
+    const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data/proxy.db');
+    db = new Database(dbPath);
     db.pragma('journal_mode = WAL');
     db.exec(`
       CREATE TABLE IF NOT EXISTS routes (
@@ -222,8 +221,16 @@ function purgeOldContainerEvents(beforeDate) {
   getDb().prepare('DELETE FROM container_events WHERE occurred_at < ?').run(beforeDate);
 }
 
+function closeDb() {
+  if (db) {
+    db.close();
+    db = null;
+  }
+}
+
 module.exports = {
   getDb,
+  closeDb,
   getAllRoutes,
   getEnabledRoutes,
   upsertRoute,
