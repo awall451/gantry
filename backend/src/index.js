@@ -8,6 +8,7 @@ const { startLogTail } = require('./log-tail');
 const { handleMessage: statsHandleMessage, unsubscribeAll } = require('./stats-manager');
 const { startStatsRecorder } = require('./stats-recorder');
 const { docker } = require('./docker-client');
+const { pickShell } = require('./exec-shell');
 const { PassThrough } = require('stream');
 
 const PORT = process.env.PORT || 3001;
@@ -65,16 +66,23 @@ wss.on('connection', ws => {
 });
 
 execWss.on('connection', async (ws, _req, containerId) => {
-  let stream;
   try {
-    const exec = await docker.getContainer(containerId).exec({
-      Cmd: ['/bin/bash'],
+    const container = docker.getContainer(containerId);
+    const shell = await pickShell(container);
+    if (!shell) {
+      ws.send('No shell available in this container.\r\n');
+      ws.close();
+      return;
+    }
+
+    const exec = await container.exec({
+      Cmd: [shell],
       AttachStdin: true,
       AttachStdout: true,
       AttachStderr: true,
       Tty: true,
     });
-    stream = await exec.start({ hijack: true, stdin: true });
+    const stream = await exec.start({ hijack: true, stdin: true });
 
     stream.on('data', chunk => {
       if (ws.readyState === WebSocket.OPEN) ws.send(chunk);
@@ -96,42 +104,8 @@ execWss.on('connection', async (ws, _req, containerId) => {
 
     ws.on('close', () => stream.destroy());
   } catch (err) {
-    // /bin/bash not available — try /bin/sh
-    if (err.statusCode === 500 && !stream) {
-      try {
-        const exec = await docker.getContainer(containerId).exec({
-          Cmd: ['/bin/sh'],
-          AttachStdin: true,
-          AttachStdout: true,
-          AttachStderr: true,
-          Tty: true,
-        });
-        stream = await exec.start({ hijack: true, stdin: true });
-        stream.on('data', chunk => {
-          if (ws.readyState === WebSocket.OPEN) ws.send(chunk);
-        });
-        stream.on('error', () => ws.close());
-        stream.on('end', () => ws.close());
-        ws.on('message', data => {
-          const str = data.toString();
-          if (str.startsWith('{')) {
-            try {
-              const msg = JSON.parse(str);
-              if (msg.type === 'resize') exec.resize({ h: msg.rows, w: msg.cols }).catch(() => {});
-            } catch {}
-          } else {
-            stream.write(data);
-          }
-        });
-        ws.on('close', () => stream.destroy());
-      } catch {
-        ws.send('No shell available in this container.\r\n');
-        ws.close();
-      }
-    } else {
-      ws.send(`Error: ${err.message}\r\n`);
-      ws.close();
-    }
+    ws.send(`Error: ${err.message}\r\n`);
+    ws.close();
   }
 });
 
