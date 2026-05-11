@@ -112,4 +112,4 @@ async function isHealthy() {
   }
 }
 
-module.exports = { startWatcher, syncContainers, getLiveContainers, setBroadcast, isHealthy };
+module.exports = { startWatcher, syncContainers, getLiveContainers, setBroadcast, isHealthy, sanitizeName, pickPort };
