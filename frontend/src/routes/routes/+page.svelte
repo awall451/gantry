@@ -57,6 +57,7 @@
 <h1>Routes</h1>
 {#if error}<p class="error">{error}</p>{/if}
 
+<div class="table-scroll">
 <table>
   <thead>
     <tr>
@@ -111,6 +112,7 @@
     {/each}
   </tbody>
 </table>
+</div>
 
 {#if routes.length === 0}
   <p class="empty">No routes yet. Start a Docker container or add a manual route from the dashboard.</p>
@@ -161,4 +163,34 @@
 
   .empty { color: #64748b; font-size: 0.9rem; margin-top: 2rem; }
   .error { color: #f87171; font-size: 0.85rem; margin-bottom: 1rem; }
+
+  /* Landscape phones / tablets: keep the table, let it scroll sideways. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  @media (pointer: coarse) {
+    .icon-btn { min-width: 44px; min-height: 44px; font-size: 1.1rem; }
+    .toggle { min-height: 36px; min-width: 56px; padding: 0.25rem 0.9rem; }
+  }
+
+  /* Phones: one card per route. The table display is dropped entirely, so
+     the "no flex on <td>" rule from CLAUDE.md does not apply here. */
+  @media (max-width: 640px) {
+    .table-scroll { overflow: visible; }
+    table, tbody, tr, td { display: block; }
+    thead { display: none; }
+    tr {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem;
+      background: #1a1d27; border: 1px solid #2d3148; border-radius: 8px;
+      padding: 0.6rem 0.75rem; margin-bottom: 0.5rem;
+    }
+    td { padding: 0; border: none; }
+    tr:last-child td { border: none; }
+    .hostname-cell { flex: 1 1 0; min-width: 0; order: 0; }
+    .hostname { overflow-wrap: anywhere; }
+    td:last-child { order: 1; }                       /* actions, same line as hostname */
+    tr::after { content: ''; flex-basis: 100%; height: 0; order: 2; margin: -0.35rem 0; }
+    td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5) { order: 3; font-size: 0.8rem; }
+    td:nth-child(2) { overflow-wrap: anywhere; }
+    .inline-edit { width: 100%; }
+  }
 </style>
