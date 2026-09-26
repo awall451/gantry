@@ -34,6 +34,7 @@
 {:else if containers.length === 0}
   <p class="muted">No running containers.</p>
 {:else}
+  <div class="table-scroll">
   <table>
     <thead>
       <tr>
@@ -58,6 +59,7 @@
       {/each}
     </tbody>
   </table>
+  </div>
 {/if}
 
 <style>
@@ -88,4 +90,15 @@
     transition: background 0.15s;
   }
   .btn:hover { background: #4a4fbf; }
+
+  /* Small screens: the table scrolls sideways inside its own box instead of
+     pushing the page wider; long cells may wrap; header row wraps. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .page-header { flex-wrap: wrap; gap: 0.75rem; }
+  @media (max-width: 640px) {
+    th, td { padding: 0.5rem; }
+  }
+  @media (max-width: 640px) {
+    td:nth-child(2) { overflow-wrap: anywhere; }   /* image */
+  }
 </style>
