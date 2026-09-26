@@ -9,6 +9,7 @@ const { handleMessage: statsHandleMessage, unsubscribeAll } = require('./stats-m
 const { startStatsRecorder } = require('./stats-recorder');
 const { docker } = require('./docker-client');
 const { pickShell } = require('./exec-shell');
+const tailscale = require('./tailscale');
 const { PassThrough } = require('stream');
 
 const PORT = process.env.PORT || 3001;
@@ -26,12 +27,14 @@ app.use('/api/images',           require('./api/images'));
 app.use('/api/volumes',          require('./api/volumes'));
 app.use('/api/networks',         require('./api/networks'));
 app.use('/api/docker-analytics', require('./api/docker-analytics'));
+app.use('/api/settings',         require('./api/settings'));
 
 app.get('/health', async (_req, res) => {
   res.json({
     status: 'ok',
     caddy: await caddyHealthy(),
     docker: await dockerHealthy(),
+    dns: tailscale.status().dns,
   });
 });
 
@@ -138,4 +141,8 @@ server.listen(PORT, () => {
   startWatcher();
   startLogTail();
   startStatsRecorder();
+  // Bring the DNS responder up (or leave it down) per saved settings. Caddy
+  // config is pushed by the watcher's first sync, so apply() only has to
+  // own the socket here; the extra pushConfig it does is harmless.
+  tailscale.apply().catch(err => console.error('[tailscale] apply on boot failed:', err.message));
 });
