@@ -42,7 +42,7 @@
 
   // Terminal
   let termEl;
-  let term, fitAddon, termWs;
+  let term, fitAddon, termWs, termRo;
   let Terminal, FitAddon;
 
   // Env var visibility
@@ -161,11 +161,14 @@
       if (termWs.readyState === 1) termWs.send(JSON.stringify({ type: 'resize', cols, rows }));
     });
 
-    const ro = new ResizeObserver(() => fitAddon?.fit());
-    ro.observe(termEl);
+    termRo?.disconnect();
+    termRo = new ResizeObserver(() => fitAddon?.fit());
+    termRo.observe(termEl);
   }
 
   function closeTerminal() {
+    termRo?.disconnect();
+    termRo = null;
     termWs?.close();
     term?.dispose();
     term = null;
