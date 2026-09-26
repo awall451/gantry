@@ -9,15 +9,25 @@ const BACKEND_PORT = process.env.PORT || 3001;
 // (just `localhost` by default; plus the Tailscale domain when that's on).
 // Settings default to DEFAULTS so callers that predate settings still get
 // today's exact output.
+//
+// TLS, when enabled, is for the Tailscale domain only: a second server on
+// :443 with the same proxy routes, certificates managed by Caddy through the
+// ACME DNS-01 challenge (wildcard + apex). Caddy's own automatic HTTPS is
+// always disabled — left on, it would self-issue for `*.localhost` and start
+// redirecting the laptop to https the moment a :443 listener exists.
 function buildConfig(routes, settings = DEFAULTS) {
   const domains = resolveDomains(settings);
   const hosts = name => domains.map(d => `${name}.${d}`);
+  const tsDomain = settings['tailscale.domain'];
+  const tailnet = settings['tailscale.enabled'];
+  const tls = tailnet && settings['tls.enabled'];
+
   // The bare Tailscale domain is what someone types on a phone, so it lands
   // on the Gantry UI too. Not done for the base domain: bare `localhost`
   // stays untouched to keep stock output identical.
   const uiHosts = hosts('gantry');
-  if (settings['tailscale.enabled']) uiHosts.push(settings['tailscale.domain']);
-  const caddyRoutes = [
+  if (tailnet) uiHosts.push(tsDomain);
+  const proxyRoutes = [
     {
       match: [{ host: uiHosts }],
       handle: [{ handler: 'reverse_proxy', upstreams: [{ dial: `localhost:${BACKEND_PORT}` }] }],
@@ -28,28 +38,61 @@ function buildConfig(routes, settings = DEFAULTS) {
     })),
   ];
 
-  return {
+  const tlsSubjects = [tsDomain, `*.${tsDomain}`];
+  const redirect = tls && settings['tls.redirect_http']
+    ? [{
+        match: [{ host: tlsSubjects }],
+        handle: [{
+          handler: 'static_response',
+          status_code: 308,
+          headers: { Location: ['https://{http.request.host}{http.request.uri}'] },
+        }],
+      }]
+    : [];
+
+  const server = (listen, routes) => ({
+    listen,
+    automatic_https: { disable: true, disable_redirects: true },
+    logs: { logger_names: { '*': 'access' } },
+    routes,
+  });
+
+  const servers = { main: server([':80'], [...redirect, ...proxyRoutes]) };
+  if (tls) servers.tls = { ...server([':443'], proxyRoutes), tls_connection_policies: [{}] };
+
+  const config = {
     logging: {
       logs: {
         access: {
           writer: { output: 'file', filename: LOG_FILE },
           encoder: { format: 'json' },
-          include: ['http.log.access.main'],
+          include: Object.keys(servers).map(n => `http.log.access.${n}`),
         },
       },
     },
-    apps: {
-      http: {
-        servers: {
-          main: {
-            listen: [':80'],
-            logs: { logger_names: { '*': 'access' } },
-            routes: caddyRoutes,
-          },
-        },
-      },
-    },
+    apps: { http: { servers } },
   };
+
+  if (tls) {
+    const issuer = {
+      module: 'acme',
+      ...(settings['tls.acme_email'] ? { email: settings['tls.acme_email'] } : {}),
+      challenges: {
+        dns: {
+          // Token is substituted by Caddy at load from its own environment —
+          // it never passes through this process or the settings table.
+          provider: { name: 'cloudflare', api_token: '{env.CLOUDFLARE_API_TOKEN}' },
+          // Public resolvers for the propagation check: on this host the
+          // Tailscale domain is split-DNS'd to Gantry's own responder, which
+          // knows nothing about _acme-challenge TXT records.
+          resolvers: ['1.1.1.1', '8.8.8.8'],
+        },
+      },
+    };
+    config.apps.tls = { automation: { policies: [{ subjects: tlsSubjects, issuers: [issuer] }] } };
+  }
+
+  return config;
 }
 
 async function pushConfig() {

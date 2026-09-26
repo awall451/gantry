@@ -21,6 +21,15 @@ const DEFAULTS = Object.freeze({
   'tailscale.ip': '',
   'tailscale.dns_enabled': true,
   'tailscale.dns_port': 53,
+
+  // HTTPS for the Tailscale domain: a Let's Encrypt wildcard obtained by
+  // Caddy over the DNS-01 challenge (Cloudflare; token via env
+  // CLOUDFLARE_API_TOKEN, never stored here). The base domain is never TLS.
+  'tls.enabled': false,
+  'tls.acme_email': '',
+  // 308 http→https on the Tailscale domain only. Plain http keeps being
+  // served when this is off.
+  'tls.redirect_http': true,
 });
 
 // Lowercase DNS name: labels of [a-z0-9-], no leading/trailing hyphen, at
@@ -62,6 +71,10 @@ function validate(patch) {
       continue;
     }
     if (typeof value !== 'string') { errors[key] = 'must be a string'; continue; }
+    if (key === 'tls.acme_email') {
+      if (value !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors[key] = 'must be an email address, or blank';
+      continue;
+    }
     if (key === 'tailscale.ip') {
       if (value !== '' && !IPV4_RE.test(value)) errors[key] = 'must be an IPv4 address, or blank to auto-detect';
       continue;

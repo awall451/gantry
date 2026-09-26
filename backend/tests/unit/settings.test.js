@@ -24,6 +24,9 @@ const DEFAULTS_EXPECTED = {
   'tailscale.ip': '',
   'tailscale.dns_enabled': true,
   'tailscale.dns_port': 53,
+  'tls.enabled': false,
+  'tls.acme_email': '',
+  'tls.redirect_http': true,
 };
 
 describe('DEFAULTS', () => {
@@ -93,6 +96,19 @@ describe('validate', () => {
 
   it('requires booleans to be actual booleans', () => {
     expect(settings.validate({ 'tailscale.enabled': 'true' }).ok).toBe(false);
+  });
+});
+
+describe('validate tls.*', () => {
+  it('accepts a blank or plausible ACME email, rejects junk', () => {
+    expect(settings.validate({ 'tls.acme_email': '' }).ok).toBe(true);
+    expect(settings.validate({ 'tls.acme_email': 'ops@example.com' }).ok).toBe(true);
+    expect(settings.validate({ 'tls.acme_email': 'not an email' }).ok).toBe(false);
+  });
+
+  it('booleans stay booleans', () => {
+    expect(settings.validate({ 'tls.enabled': true, 'tls.redirect_http': false }).ok).toBe(true);
+    expect(settings.validate({ 'tls.enabled': 'yes' }).ok).toBe(false);
   });
 });
 
