@@ -94,6 +94,7 @@
     th, td { padding: 0.5rem; }
   }
   @media (max-width: 640px) {
-    .name, .mono { overflow-wrap: anywhere; }
+    .name { overflow-wrap: break-word; }
+    .mono { white-space: nowrap; font-size: 0.75rem; }
   }
 </style>
