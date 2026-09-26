@@ -129,5 +129,7 @@
   td.mono { overflow-wrap: anywhere; }
   @media (max-width: 640px) {
     .err-inline { max-width: 140px; }
+    /* Mountpoint is derivable from the name and too long for a phone column. */
+    th:nth-child(3), td:nth-child(3) { display: none; }
   }
 </style>
