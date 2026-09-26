@@ -159,8 +159,10 @@ test.describe('container detail', () => {
       await settle(page);
       if (tab !== 'overview') {
         const btn = page.getByRole('button', { name: new RegExp(`^${tab}$`, 'i') });
-        // A tab that cannot be clicked is a bug in its own right (pushed out of the
-        // viewport by a non-wrapping tab bar); say so instead of timing out.
+        // A tab that cannot be reached is a bug in its own right (pushed out of the
+        // viewport by a non-wrapping tab bar); say so instead of timing out. The
+        // strip may scroll sideways, so scroll first, then require it in view.
+        await btn.scrollIntoViewIfNeeded();
         const box = await btn.boundingBox();
         const vp = page.viewportSize();
         expect(box && box.x >= 0 && box.x + box.width <= vp.width, `${tab} tab is outside the viewport (x=${box?.x}, w=${box?.width}, vw=${vp.width})`).toBe(true);

@@ -465,12 +465,13 @@
 
   .page-header {
     display: flex; align-items: flex-start; justify-content: space-between;
-    margin-bottom: 1.5rem; gap: 1rem;
+    margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;
   }
-  h1 { font-size: 1.4rem; font-weight: 700; }
-  .image-label { font-size: 0.8rem; color: #64748b; }
+  .page-header > div:first-child { min-width: 0; }
+  h1 { font-size: 1.4rem; font-weight: 700; overflow-wrap: anywhere; }
+  .image-label { font-size: 0.8rem; color: #64748b; overflow-wrap: anywhere; }
 
-  .ctrl { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+  .ctrl { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; }
 
   .badge {
     font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.5rem;
@@ -491,11 +492,16 @@
   .btn.red:hover { background: #4b1c1c; }
   .btn.sm { padding: 0.3rem 0.6rem; font-size: 0.78rem; }
 
-  .tabs { display: flex; gap: 0; border-bottom: 1px solid #2d3148; margin-bottom: 1.5rem; }
+  /* The tab strip scrolls sideways when it does not fit (phones). */
+  .tabs {
+    display: flex; gap: 0; border-bottom: 1px solid #2d3148; margin-bottom: 1.5rem;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
   .tab {
     background: none; border: none; color: #64748b; cursor: pointer;
     padding: 0.6rem 1.2rem; font-size: 0.875rem; border-bottom: 2px solid transparent;
-    transition: color 0.15s; margin-bottom: -1px;
+    transition: color 0.15s; margin-bottom: -1px; white-space: nowrap; flex-shrink: 0;
   }
   .tab:hover { color: #e2e8f0; }
   .tab.active { color: #7c84ff; border-bottom-color: #7c84ff; }
