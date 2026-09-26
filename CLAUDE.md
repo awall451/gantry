@@ -24,7 +24,10 @@ cd backend && PORT=3001 CADDY_ADMIN=http://localhost:2019 DB_PATH=../data/proxy.
 cd frontend && npm run dev -- --port 5173
 ```
 
-No test suite or linter configured.
+Tests: `cd frontend && npm test` (vitest, jsdom), backend suite per CONTRIBUTING (needs the
+`node:20` container on a host with a newer Node). Tier 3: `cd frontend && npm run e2e` — Playwright
+phone-viewport audit (`frontend/e2e/mobile.spec.js`) against a running server (`BASE_URL`, default
+`http://localhost:5173`); every page must fit the viewport and keep ≥40px tap targets. No linter.
 
 **Frontend changes in production mode require `docker compose up --build`** — compiled assets are baked into the Docker image (no volume mount). In dev mode (`./dev.sh`), Vite HMR picks up changes immediately.
 
@@ -150,7 +153,7 @@ Two critical implementation details:
 
 ### Nav
 
-Left collapsible sidebar (200px expanded / 52px icon-only collapsed). Three groups: Proxy (Dashboard, Routes, Analytics), Docker (Containers, Events, Images, Volumes, Networks), System (Settings). Toggle with `‹/›` button. State is in-memory only (resets on reload).
+Left collapsible sidebar (200px expanded / 52px icon-only collapsed). Three groups: Proxy (Dashboard, Routes, Analytics), Docker (Containers, Events, Images, Volumes, Networks), System (Settings). Toggle with `‹/›` button. State is in-memory only (resets on reload). Under 900px the sidebar is an off-canvas drawer (☰ in a fixed top bar; closes on navigation, backdrop tap, Escape); the rail collapse is CSS-only so the drawer always shows labels.
 
 ### Frontend packages
 
@@ -162,7 +165,18 @@ Left collapsible sidebar (200px expanded / 52px icon-only collapsed). Three grou
 
 ### CSS conventions
 
-**Never put `display: flex` directly on a `<td>`.** It detaches the cell from table row height equalization — `border-bottom` renders at content-height instead of row-bottom, causing visual misalignment when rows have varying heights.
+**Breakpoints** (literal in each component's `<style>`, documented in `+layout.svelte`):
+- `@media (max-width: 900px)` — the sidebar becomes an off-canvas drawer behind a top bar
+  (`+layout.svelte`); `main` loses its margin and gets 1rem padding.
+- `@media (max-width: 640px)` — content stacks: `ContainerCard` rows go multi-line, the Routes
+  table becomes cards, other tables sit in a `.table-scroll` wrapper (and may drop a column),
+  charts shrink, modals go `min(360px, 100vw - 2rem)`.
+- `@media (pointer: coarse)` — tap targets ≥44px (buttons, tabs, nav links) regardless of width,
+  so landscape phones get them too.
+Charts set `maintainAspectRatio: false` inside a fixed-height wrapper. Never hardcode a column
+grid that needs more than ~360px without a stacked variant.
+
+**Never put `display: flex` directly on a `<td>`** while the table is still a table. It detaches the cell from table row height equalization — `border-bottom` renders at content-height instead of row-bottom, causing visual misalignment when rows have varying heights.
 
 Correct pattern (used in routes, images, volumes pages):
 ```svelte
