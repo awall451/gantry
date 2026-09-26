@@ -80,3 +80,19 @@ npm --prefix frontend install
 8. E2E — Playwright happy path
 
 One PR per file. One Gitea issue per file with checklist of cases.
+
+## Tier 3 — Playwright e2e / phone-viewport audit
+
+`frontend/e2e/mobile.spec.js` loads every page at iPhone 14 / Pixel 7 (portrait + landscape)
+and a 1280px desktop, asserts there is no horizontal overflow and that tap targets are big
+enough, and saves screenshots to `frontend/e2e/shots/<project>/` (gitignored).
+
+```bash
+cd frontend && npm run dev            # or: docker compose up -d --build (prod image)
+cd frontend && npm run e2e            # default BASE_URL=http://localhost:5173
+BASE_URL=http://gantry.localhost npm run e2e      # against the deployed stack
+npm run e2e:mobile                    # portrait projects only
+```
+
+Nothing is started for you — point `BASE_URL` at whatever is running. Only Chromium is
+used (iPhone presets are forced off WebKit); check Safari-specific behaviour on a real device.

@@ -18,3 +18,8 @@ coverage/
 backend/coverage/
 frontend/coverage/
 
+
+# Tier 3 e2e (Playwright)
+frontend/e2e/shots/
+frontend/test-results/
+frontend/playwright-report/
