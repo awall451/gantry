@@ -114,6 +114,7 @@
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,   // .chart-wrap sets the height
         plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { color: '#64748b', maxTicksLimit: 6 }, grid: { color: '#1e2235' } },
@@ -208,6 +209,7 @@
 
     const baseOpts = {
       responsive: true,
+      maintainAspectRatio: false,   // .chart-wrap sets the height
       plugins: { legend: { display: false } },
       scales: {
         x: { ticks: { color: '#64748b', maxTicksLimit: 8 }, grid: { color: '#1e2235' } },
@@ -524,7 +526,10 @@
   .stat-val { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
   .stat-lbl { font-size: 0.75rem; color: #64748b; }
 
-  .chart-wrap { background: #1a1d27; border: 1px solid #2d3148; border-radius: 8px; padding: 1rem; }
+  .chart-wrap {
+    background: #1a1d27; border: 1px solid #2d3148; border-radius: 8px; padding: 1rem;
+    position: relative; height: 260px;
+  }
 
   .kv-grid {
     display: grid; grid-template-columns: minmax(140px, max-content) 1fr;
@@ -580,5 +585,7 @@
   }
   @media (max-width: 640px) {
     .tab { padding: 0.6rem 0.8rem; }
+    .chart-wrap { height: 220px; padding: 0.5rem; }
+    .term-wrap { height: 50vh; }
   }
 </style>
