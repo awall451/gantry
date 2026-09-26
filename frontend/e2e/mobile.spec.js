@@ -115,18 +115,31 @@ test('dashboard: add-route modal fits', async ({ page }, info) => {
   expect(box.y + box.height, 'modal bottom edge inside viewport').toBeLessThanOrEqual(vp.height + 1);
 });
 
-test('nav: sidebar links are tappable and content is not squeezed', async ({ page }, info) => {
+test('nav: phones get a drawer, desktop keeps the sidebar', async ({ page }, info) => {
   await page.goto('/');
   await settle(page);
-  // On phones the nav must not steal most of the width from <main>.
   const mainBox = await page.locator('main').boundingBox();
   const vp = page.viewportSize();
   await shot(page, info.project.name, 'nav');
   if (isMobile(info.project.name)) {
     expect(mainBox.width, 'main should get (almost) the full viewport width on phones').toBeGreaterThanOrEqual(vp.width * 0.9);
+    const menu = page.getByRole('button', { name: /open menu/i });
+    await expect(menu).toBeVisible();
+    await expectTappable(page, '.menu-btn', 'menu button');
+    await menu.click();
+    await page.waitForTimeout(350);
+    await expect(page.locator('aside')).toBeInViewport();
+    await shot(page, info.project.name, 'nav-drawer');
+    await expectFits(page, 'nav-drawer');
     await expectTappable(page, 'nav a', 'nav links');
+    // Navigating closes the drawer again.
+    await page.locator('nav a', { hasText: 'Routes' }).click();
+    await page.waitForTimeout(400);
+    await expect(page.locator('aside')).not.toBeInViewport();
+    expect(page.url()).toMatch(/\/routes$/);
   } else {
     expect(mainBox.x, 'desktop keeps the sidebar').toBeGreaterThanOrEqual(150);
+    await expect(page.getByRole('button', { name: /open menu/i })).toBeHidden();
   }
 });
 

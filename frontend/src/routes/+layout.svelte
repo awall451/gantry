@@ -14,7 +14,15 @@
 
   $: path = $page.url.pathname;
 
-  let collapsed = false;
+  let collapsed = false;   // desktop: icon rail
+  let drawerOpen = false;  // phones: off-canvas drawer (see --bp-nav in <style>)
+
+  // Any navigation closes the drawer.
+  $: if (path) drawerOpen = false;
+
+  function onKeydown(e) {
+    if (e.key === 'Escape') drawerOpen = false;
+  }
 
   const NAV = [
     {
@@ -48,23 +56,32 @@
   }
 </script>
 
-<div class="app" class:collapsed>
+<svelte:window on:keydown={onKeydown} />
+
+<div class="app" class:collapsed class:drawer-open={drawerOpen}>
+  <header class="topbar">
+    <button class="menu-btn" aria-label="Open menu" aria-expanded={drawerOpen}
+      on:click={() => drawerOpen = !drawerOpen}>☰</button>
+    <a class="brand" href="/">Gantry</a>
+  </header>
+
+  {#if drawerOpen}
+    <div class="backdrop" on:click={() => drawerOpen = false} role="presentation"></div>
+  {/if}
+
   <aside>
     <div class="sidebar-header">
-      {#if !collapsed}
-        <span class="brand">Gantry</span>
-      {/if}
+      <span class="brand">Gantry</span>
       <button class="toggle-btn" on:click={() => collapsed = !collapsed} title={collapsed ? 'Expand' : 'Collapse'}>
         {collapsed ? '›' : '‹'}
       </button>
+      <button class="close-btn" aria-label="Close menu" on:click={() => drawerOpen = false}>×</button>
     </div>
 
     <nav>
       {#each NAV as group}
         <div class="nav-group">
-          {#if !collapsed}
-            <span class="group-label">{group.label}</span>
-          {/if}
+          <span class="group-label">{group.label}</span>
           {#each group.links as link}
             <a
               href={link.href}
@@ -72,7 +89,7 @@
               title={collapsed ? link.label : ''}
             >
               <span class="icon">{link.icon}</span>
-              {#if !collapsed}<span class="link-label">{link.label}</span>{/if}
+              <span class="link-label">{link.label}</span>
             </a>
           {/each}
         </div>
@@ -90,11 +107,24 @@
   :global(body) { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; overflow-x: hidden; }
   :global(a) { color: inherit; text-decoration: none; }
 
+  /*
+   * Breakpoints (keep in sync with CLAUDE.md § CSS conventions):
+   *   <= 900px  nav becomes an off-canvas drawer behind a top bar
+   *   <= 640px  content stacks (rows wrap, tables scroll/cardify, modals go full-width)
+   * Svelte can't put a custom property in a media query, so the numbers are
+   * repeated literally in each component.
+   */
   .app {
     display: flex; min-height: 100vh;
     --sidebar-w: 200px;
     --sidebar-w-collapsed: 52px;
+    --topbar-h: 52px;
   }
+
+  /* Top bar + drawer chrome: desktop never sees these. */
+  .topbar { display: none; }
+  .backdrop { display: none; }
+  .close-btn { display: none; }
 
   aside {
     width: var(--sidebar-w);
@@ -123,6 +153,7 @@
   }
 
   .collapsed .sidebar-header { justify-content: center; }
+  .collapsed .brand, .collapsed .group-label, .collapsed .link-label { display: none; }
 
   .brand {
     font-weight: 700; font-size: 1rem; color: #7c84ff;
@@ -176,4 +207,58 @@
   }
 
   .collapsed main { margin-left: var(--sidebar-w-collapsed); }
+
+  @media (max-width: 900px) {
+    .topbar {
+      display: flex; align-items: center; gap: 0.5rem;
+      position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+      padding: 0 0.5rem;
+      background: #1a1d27; border-bottom: 1px solid #2d3148;
+      z-index: 30;
+    }
+    .menu-btn {
+      background: none; border: none; color: #94a3b8; cursor: pointer;
+      font-size: 1.25rem; line-height: 1;
+      width: 44px; height: 44px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .menu-btn:hover, .menu-btn:active { color: #e2e8f0; background: #1e2235; }
+
+    .backdrop {
+      display: block; position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.55); z-index: 40;
+    }
+
+    /* The sidebar becomes a drawer: full nav width, never the icon rail. */
+    aside, .collapsed aside {
+      width: min(280px, 85vw);
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+      z-index: 50;
+      box-shadow: none;
+    }
+    .drawer-open aside, .drawer-open.collapsed aside {
+      transform: translateX(0);
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+    }
+    .toggle-btn { display: none; }
+    .close-btn {
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: 1px solid #2d3148; border-radius: 6px;
+      color: #94a3b8; cursor: pointer; font-size: 1.25rem; line-height: 1;
+      width: 40px; height: 40px;
+    }
+    .collapsed .sidebar-header { justify-content: space-between; }
+    .collapsed .brand { display: inline; }
+    .collapsed .group-label { display: block; }
+    .collapsed .link-label { display: inline; }
+    .collapsed nav a { padding: 0.5rem 1rem; justify-content: flex-start; }
+    nav a { min-height: 44px; font-size: 0.95rem; }
+
+    main, .collapsed main {
+      margin-left: 0;
+      padding: calc(var(--topbar-h) + 1rem) 1rem 1.5rem;
+      max-width: none;
+    }
+  }
 </style>
