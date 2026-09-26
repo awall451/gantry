@@ -569,4 +569,12 @@
 
   .muted { color: #64748b; }
   .err { color: #f87171; }
+
+  @media (pointer: coarse) {
+    .tab { min-height: 44px; }
+    .btn { min-height: 40px; }
+  }
+  @media (max-width: 640px) {
+    .tab { padding: 0.6rem 0.8rem; }
+  }
 </style>
