@@ -99,6 +99,7 @@
     th, td { padding: 0.5rem; }
   }
   @media (max-width: 640px) {
-    td:nth-child(2) { overflow-wrap: anywhere; }   /* image */
+    th:nth-child(2), td:nth-child(2) { display: none; }   /* image: on the detail page */
+    .name-link { overflow-wrap: anywhere; }
   }
 </style>
