@@ -79,9 +79,9 @@ describe('validate', () => {
 
   it('accepts an empty tailscale ip (auto-detect) and a dotted-quad, rejects junk', () => {
     expect(settings.validate({ 'tailscale.ip': '' }).ok).toBe(true);
-    expect(settings.validate({ 'tailscale.ip': '100.69.122.15' }).ok).toBe(true);
+    expect(settings.validate({ 'tailscale.ip': '100.100.7.42' }).ok).toBe(true);
     expect(settings.validate({ 'tailscale.ip': '999.1.1.1' }).ok).toBe(false);
-    expect(settings.validate({ 'tailscale.ip': 'garuda' }).ok).toBe(false);
+    expect(settings.validate({ 'tailscale.ip': 'not-an-ip' }).ok).toBe(false);
   });
 
   it('requires dns_port to be an integer 1..65535', () => {

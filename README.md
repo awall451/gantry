@@ -9,7 +9,8 @@ Smart local reverse proxy + Docker management UI. Auto-discovers containers, rou
 - Live container logs, stats, and terminal (xterm.js)
 - Request analytics with time-range charts
 - WebSocket push for real-time UI updates
-- Optional Tailscale access: reach every route from your phone or another machine on your tailnet as `<container>.gantry.internal`
+- Optional Tailscale access: reach every route from your phone or any other tailnet device as `<container>.gantry.internal`, no DNS server or extra containers to run
+- Settings page: base domain, Tailscale options, live status
 
 ## Quick Start
 
@@ -66,18 +67,38 @@ Stopped containers remain visible in the UI as offline. Routes persist across re
 
 ## Tailscale access (optional)
 
-Off by default. Turn it on under **Settings → Tailscale** and Gantry will:
+Off by default — a stock install behaves exactly as before and never touches Tailscale.
 
-1. Match every route on a second suffix (default `gantry.internal`) in addition to `.localhost`.
-2. Run a tiny built-in DNS responder on this host's Tailscale IP, port 53, that answers `*.gantry.internal` with that IP.
+Turn it on under **Settings → Tailscale** and every route becomes reachable from any device on your tailnet, alongside the usual `*.localhost` names:
 
-Then, once, in the [Tailscale admin console → DNS](https://login.tailscale.com/admin/dns): **Add nameserver → Custom**, nameserver = this host's Tailscale IP, **Restrict to domain** = `gantry.internal`. The Settings page shows these steps with your values filled in. Any device on the tailnet can now open `http://<container>.gantry.internal`, and `http://gantry.internal` is the Gantry UI.
+| Where you are | What you open |
+|---------------|---------------|
+| On the machine running Gantry | `http://<container>.localhost` (unchanged) |
+| Any other tailnet device (phone, laptop, …) | `http://<container>.gantry.internal` |
+| Gantry itself, from the tailnet | `http://gantry.internal` |
 
-Traffic is plain HTTP inside Tailscale's encrypted tunnel. Nothing is exposed outside the tailnet.
+`gantry.internal` is the default; pick any name you like. `.internal` is reserved for private use, so it can never collide with a public domain.
+
+### How it works
+
+Tailscale's MagicDNS gives every device one name and has no wildcard records, so Gantry fills the gap itself:
+
+1. **Caddy** matches every route on a second suffix (`<container>.gantry.internal`) in addition to `.localhost`. Caddy already listens on all interfaces, so tailnet traffic reaches it on port 80 like any other.
+2. **A built-in DNS responder** (dependency-free, ~150 lines) binds UDP 53 on this machine's Tailscale IP and answers `*.gantry.internal` with that IP. Nothing else — names outside the zone are refused. The IP is auto-detected; you can pin it.
+3. **Tailscale split DNS** sends only queries for that domain to Gantry. One-time setup in the Tailscale admin console, and the Settings page prints the exact steps with your values filled in:
+   **DNS → Nameservers → Add nameserver → Custom** → nameserver = this machine's Tailscale IP → **Restrict to domain** = `gantry.internal`.
+
+Links in the UI follow the address you opened Gantry on: open it as `gantry.localhost` and cards link to `*.localhost`; open it as `gantry.internal` from a phone and they link to `*.gantry.internal`. Both names are listed, so the other one is always a click away.
+
+Traffic is plain HTTP inside Tailscale's encrypted tunnel; nothing is exposed outside the tailnet. If the machine running Gantry is asleep, the names simply don't resolve.
+
+### Settings
+
+`Settings` (left nav, **System**) holds the base domain (`localhost` by default) and everything Tailscale-related: enable, domain, IP override, the DNS responder toggle and port, plus live status of the responder (running / bind error / no Tailscale IP found). Runtime problems are shown there and on `/health`; they never block saving.
 
 ## Requirements
 
 - Docker with socket access (`/var/run/docker.sock`)
 - Port 80 free (Caddy)
 - Ports 3001 and 2019 free (backend + Caddy Admin API)
-- With Tailscale access on: UDP 53 free on the Tailscale interface (systemd-resolved only binds 127.0.0.53, so this is normally fine)
+- With Tailscale access on: UDP 53 free on the Tailscale interface (systemd-resolved binds only `127.0.0.53`, so this is normally the case) and Tailscale running on the host

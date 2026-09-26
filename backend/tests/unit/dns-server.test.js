@@ -10,7 +10,7 @@ function query(name, qtype = 1, id = 0x1234) {
   return Buffer.concat([header, q]);
 }
 
-const opts = { domain: 'gantry.internal', ip: '100.69.122.15', ttl: 60 };
+const opts = { domain: 'gantry.internal', ip: '100.100.7.42', ttl: 60 };
 
 describe('encodeName', () => {
   it('encodes labels with length prefixes and a root terminator', () => {
@@ -20,21 +20,21 @@ describe('encodeName', () => {
 
 describe('buildResponse', () => {
   it('answers an A query under the domain with the tailscale ip', () => {
-    const res = buildResponse(query('fleabook.gantry.internal'), opts);
+    const res = buildResponse(query('myapp.gantry.internal'), opts);
     expect(res.readUInt16BE(0)).toBe(0x1234);           // id echoed
     expect(res.readUInt16BE(2) & 0x8000).toBe(0x8000);  // QR = response
     expect(res.readUInt16BE(2) & 0x0400).toBe(0x0400);  // AA = authoritative
     expect(res.readUInt16BE(2) & 0x000f).toBe(0);       // RCODE NOERROR
     expect(res.readUInt16BE(6)).toBe(1);                // ANCOUNT
     // answer = pointer to name @12, type A, class IN, ttl, rdlength 4, ip
-    const q = query('fleabook.gantry.internal');
+    const q = query('myapp.gantry.internal');
     const ans = res.subarray(q.length);
     expect(ans.subarray(0, 2)).toEqual(Buffer.from([0xc0, 0x0c]));
     expect(ans.readUInt16BE(2)).toBe(1);
     expect(ans.readUInt16BE(4)).toBe(1);
     expect(ans.readUInt32BE(6)).toBe(60);
     expect(ans.readUInt16BE(10)).toBe(4);
-    expect([...ans.subarray(12, 16)]).toEqual([100, 69, 122, 15]);
+    expect([...ans.subarray(12, 16)]).toEqual([100, 100, 7, 42]);
   });
 
   it('answers the apex domain itself', () => {
@@ -43,12 +43,12 @@ describe('buildResponse', () => {
   });
 
   it('matches case-insensitively', () => {
-    const res = buildResponse(query('FleaBook.Gantry.INTERNAL'), opts);
+    const res = buildResponse(query('MyApp.Gantry.INTERNAL'), opts);
     expect(res.readUInt16BE(6)).toBe(1);
   });
 
   it('returns NOERROR with no answer for AAAA under the domain (so clients fall back to A)', () => {
-    const res = buildResponse(query('fleabook.gantry.internal', 28), opts);
+    const res = buildResponse(query('myapp.gantry.internal', 28), opts);
     expect(res.readUInt16BE(2) & 0x000f).toBe(0);
     expect(res.readUInt16BE(6)).toBe(0);
   });
@@ -79,9 +79,9 @@ describe('pickTailscaleIp', () => {
   it('prefers an interface named tailscale*', () => {
     const ifaces = {
       eth0: [{ family: 'IPv4', address: '10.1.10.5', internal: false }],
-      tailscale0: [{ family: 'IPv4', address: '100.69.122.15', internal: false }],
+      tailscale0: [{ family: 'IPv4', address: '100.100.7.42', internal: false }],
     };
-    expect(pickTailscaleIp(ifaces)).toEqual({ ip: '100.69.122.15', iface: 'tailscale0' });
+    expect(pickTailscaleIp(ifaces)).toEqual({ ip: '100.100.7.42', iface: 'tailscale0' });
   });
 
   it('falls back to any CGNAT 100.64/10 address (e.g. utun on macOS)', () => {

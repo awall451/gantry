@@ -5,12 +5,12 @@ const stock = { ...DEFAULT_VALUES };
 
 describe('hostsFor', () => {
   it('is just <name>.localhost on a stock install', () => {
-    expect(hostsFor('fleabook', stock)).toEqual(['fleabook.localhost']);
+    expect(hostsFor('myapp', stock)).toEqual(['myapp.localhost']);
   });
 
   it('adds the tailscale FQDN when tailscale is enabled', () => {
-    expect(hostsFor('fleabook', { ...stock, 'tailscale.enabled': true }))
-      .toEqual(['fleabook.localhost', 'fleabook.gantry.internal']);
+    expect(hostsFor('myapp', { ...stock, 'tailscale.enabled': true }))
+      .toEqual(['myapp.localhost', 'myapp.gantry.internal']);
   });
 
   it('follows a custom base domain', () => {
@@ -20,7 +20,7 @@ describe('hostsFor', () => {
 
 describe('primaryUrl', () => {
   it('is http on the base domain', () => {
-    expect(primaryUrl('fleabook', stock)).toBe('http://fleabook.localhost');
+    expect(primaryUrl('myapp', stock)).toBe('http://myapp.localhost');
   });
 });
 
@@ -49,23 +49,23 @@ describe('primaryUrl follows the domain the UI was opened on', () => {
   const ts = { ...stock, 'tailscale.enabled': true };
 
   it('opened on gantry.localhost → localhost links', () => {
-    expect(primaryUrl('fleabook', ts, 'gantry.localhost')).toBe('http://fleabook.localhost');
+    expect(primaryUrl('myapp', ts, 'gantry.localhost')).toBe('http://myapp.localhost');
   });
 
   it('opened on gantry.gantry.internal → tailscale links', () => {
-    expect(primaryUrl('fleabook', ts, 'gantry.gantry.internal')).toBe('http://fleabook.gantry.internal');
+    expect(primaryUrl('myapp', ts, 'gantry.gantry.internal')).toBe('http://myapp.gantry.internal');
   });
 
   it('opened on the bare tailscale domain → tailscale links', () => {
-    expect(primaryUrl('fleabook', ts, 'gantry.internal')).toBe('http://fleabook.gantry.internal');
+    expect(primaryUrl('myapp', ts, 'gantry.internal')).toBe('http://myapp.gantry.internal');
   });
 
   it('opened on localhost:5173 (vite dev) → base domain', () => {
-    expect(primaryUrl('fleabook', ts, 'localhost')).toBe('http://fleabook.localhost');
+    expect(primaryUrl('myapp', ts, 'localhost')).toBe('http://myapp.localhost');
   });
 
   it('tailscale off → always the base domain, whatever the current host', () => {
-    expect(primaryUrl('fleabook', stock, 'gantry.internal')).toBe('http://fleabook.localhost');
+    expect(primaryUrl('myapp', stock, 'gantry.internal')).toBe('http://myapp.localhost');
   });
 
   it('hostsFor puts the current network first so the primary link is hosts[0]', () => {
