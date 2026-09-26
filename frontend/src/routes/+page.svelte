@@ -98,7 +98,7 @@
 {/if}
 
 <style>
-  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+  .page-header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
   h1 { font-size: 1.4rem; font-weight: 700; }
 
   .list { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -134,7 +134,8 @@
   }
   .modal {
     background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px;
-    padding: 1.5rem; width: 360px; display: flex; flex-direction: column; gap: 1rem;
+    padding: 1.5rem; width: min(360px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem);
+    overflow-y: auto; display: flex; flex-direction: column; gap: 1rem;
   }
   .modal h2 { font-size: 1.1rem; }
   .modal form { display: flex; flex-direction: column; gap: 0.75rem; }
