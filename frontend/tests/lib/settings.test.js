@@ -44,3 +44,32 @@ describe('settings store', () => {
     expect(s.status.dns.running).toBe(true);
   });
 });
+
+describe('primaryUrl follows the domain the UI was opened on', () => {
+  const ts = { ...stock, 'tailscale.enabled': true };
+
+  it('opened on gantry.localhost → localhost links', () => {
+    expect(primaryUrl('fleabook', ts, 'gantry.localhost')).toBe('http://fleabook.localhost');
+  });
+
+  it('opened on gantry.gantry.internal → tailscale links', () => {
+    expect(primaryUrl('fleabook', ts, 'gantry.gantry.internal')).toBe('http://fleabook.gantry.internal');
+  });
+
+  it('opened on the bare tailscale domain → tailscale links', () => {
+    expect(primaryUrl('fleabook', ts, 'gantry.internal')).toBe('http://fleabook.gantry.internal');
+  });
+
+  it('opened on localhost:5173 (vite dev) → base domain', () => {
+    expect(primaryUrl('fleabook', ts, 'localhost')).toBe('http://fleabook.localhost');
+  });
+
+  it('tailscale off → always the base domain, whatever the current host', () => {
+    expect(primaryUrl('fleabook', stock, 'gantry.internal')).toBe('http://fleabook.localhost');
+  });
+
+  it('hostsFor puts the current network first so the primary link is hosts[0]', () => {
+    expect(hostsFor('x', ts, 'gantry.internal')).toEqual(['x.gantry.internal', 'x.localhost']);
+    expect(hostsFor('x', ts, 'gantry.localhost')).toEqual(['x.localhost', 'x.gantry.internal']);
+  });
+});

@@ -15,16 +15,36 @@ export const DEFAULT_VALUES = Object.freeze({
 
 export const settings = writable({ values: { ...DEFAULT_VALUES }, status: null, loaded: false });
 
-// Every FQDN a route answers on, base domain first. Same rule as the
-// backend's resolveDomains(), kept in sync by hand — it's two lines.
-export function hostsFor(hostname, values) {
-  const hosts = [`${hostname}.${values['general.base_domain']}`];
-  if (values['tailscale.enabled']) hosts.push(`${hostname}.${values['tailscale.domain']}`);
-  return hosts;
+// Every domain a route answers on. Same rule as the backend's
+// resolveDomains(), kept in sync by hand — it's two lines.
+function domainsFor(values) {
+  const domains = [values['general.base_domain']];
+  if (values['tailscale.enabled']) domains.push(values['tailscale.domain']);
+  return domains;
 }
 
-export function primaryUrl(hostname, values) {
-  return `http://${hostsFor(hostname, values)[0]}`;
+// Which of the configured domains the UI itself was opened on. A `.localhost`
+// link is dead on a phone and a `.gantry.internal` link is a detour on the
+// laptop, so links follow the address bar rather than a setting: whichever
+// domain the current page's host ends with wins, base domain otherwise.
+export function currentDomain(values, currentHost = globalThis.location?.hostname ?? '') {
+  const host = currentHost.toLowerCase();
+  for (const d of domainsFor(values)) {
+    if (host === d || host.endsWith(`.${d}`)) return d;
+  }
+  return values['general.base_domain'];
+}
+
+// Every FQDN a route answers on, the current network's first. The first entry
+// is the one to link; the rest are shown as alternates.
+export function hostsFor(hostname, values, currentHost) {
+  const current = currentDomain(values, currentHost);
+  const domains = domainsFor(values).sort((a, b) => (a === current ? -1 : b === current ? 1 : 0));
+  return domains.map(d => `${hostname}.${d}`);
+}
+
+export function primaryUrl(hostname, values, currentHost) {
+  return `http://${hostsFor(hostname, values, currentHost)[0]}`;
 }
 
 export function applyServerPayload({ values, status }) {

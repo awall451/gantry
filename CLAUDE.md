@@ -85,7 +85,7 @@ How tailnet access works: MagicDNS has no wildcard records, so the user adds a *
 
 Runtime failures (DNS bind `EACCES`/`EADDRINUSE`/`EADDRNOTAVAIL`, no Tailscale IP) never fail the PUT — they appear in the `status.dns` block and on `/health`. The backend binds `:53` because it runs as root on `network_mode: host`; nothing else is required.
 
-Frontend: `lib/settings.js` store is loaded once in `+layout.svelte` and refreshed on the `settings:updated` broadcast. `hostsFor(hostname, values)` / `primaryUrl()` are the only way hostnames are rendered — never hardcode `.localhost` in a component again.
+Frontend: `lib/settings.js` store is loaded once in `+layout.svelte` and refreshed on the `settings:updated` broadcast. `hostsFor(hostname, values)` / `primaryUrl()` are the only way hostnames are rendered — never hardcode `.localhost` in a component again. **Links follow the address bar, not a setting:** `currentDomain()` picks whichever configured domain the UI's own `location.hostname` ends with (base domain otherwise), and `hostsFor` puts that one first. Opened on `gantry.localhost` → `*.localhost` links; opened on `gantry.internal` (phone) → `*.gantry.internal` links. Both are listed (the alternate muted) in the routes table and the expanded container row.
 
 ### WebSocket architecture
 

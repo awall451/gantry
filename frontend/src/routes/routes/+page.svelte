@@ -80,7 +80,7 @@
             />
           {:else}
             {#each hostsFor(r.hostname, $settings.values) as h, i}
-              <span class="hostname" class:secondary={i > 0}>{h}</span>
+              <a class="hostname" class:secondary={i > 0} href="http://{h}" target="_blank" rel="noopener">{h}</a>
             {/each}
           {/if}
         </td>
@@ -128,6 +128,7 @@
   .actions-cell { display: flex; align-items: center; gap: 0.25rem; justify-content: flex-end; }
   .hostname { font-weight: 500; color: #7c84ff; display: block; }
   .hostname.secondary { color: #64748b; font-weight: 400; font-size: 0.8rem; }
+  .hostname:hover { text-decoration: underline; }
 
   .inline-edit {
     background: #0f1117; border: 1px solid #7c84ff; border-radius: 4px;

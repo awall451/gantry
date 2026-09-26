@@ -92,7 +92,7 @@
         {#if route}
           <span class="dk">Route</span>
           <span class="dv">
-            {#each hostsFor(route.hostname, $settings.values) as h, i}{#if i}<span class="muted"> · </span>{/if}{h}{/each}
+            {#each hostsFor(route.hostname, $settings.values) as h, i}{#if i}<span class="muted"> · </span>{/if}<a class="route-link" class:alt={i > 0} href="http://{h}" target="_blank" rel="noopener">{h}</a>{/each}
             {#if !route.enabled}<span class="tag warn">disabled</span>{/if}
             <span class="tag {route.is_auto ? 'auto' : 'manual'}">{route.is_auto ? 'auto' : 'manual'}</span>
           </span>
@@ -221,4 +221,7 @@
   .detail-actions { flex-shrink: 0; }
   .detail-link { font-size: 0.82rem; color: #7c84ff; white-space: nowrap; }
   .detail-link:hover { text-decoration: underline; }
+  .route-link { color: #7c84ff; }
+  .route-link.alt { color: #64748b; }
+  .route-link:hover { text-decoration: underline; }
 </style>
