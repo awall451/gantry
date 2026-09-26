@@ -12,9 +12,14 @@ const BACKEND_PORT = process.env.PORT || 3001;
 function buildConfig(routes, settings = DEFAULTS) {
   const domains = resolveDomains(settings);
   const hosts = name => domains.map(d => `${name}.${d}`);
+  // The bare Tailscale domain is what someone types on a phone, so it lands
+  // on the Gantry UI too. Not done for the base domain: bare `localhost`
+  // stays untouched to keep stock output identical.
+  const uiHosts = hosts('gantry');
+  if (settings['tailscale.enabled']) uiHosts.push(settings['tailscale.domain']);
   const caddyRoutes = [
     {
-      match: [{ host: hosts('gantry') }],
+      match: [{ host: uiHosts }],
       handle: [{ handler: 'reverse_proxy', upstreams: [{ dial: `localhost:${BACKEND_PORT}` }] }],
     },
     ...routes.map(r => ({

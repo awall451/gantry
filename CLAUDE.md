@@ -66,6 +66,7 @@ Three components on `network_mode: host` so they can dial each other by port wit
 3. `caddy-client.js` — builds full Caddy JSON config from enabled routes, POSTs to `/load` (atomic replace)
 4. `gantry.<domain>` always first route, hard-coded to backend port
 5. Every route is matched on `<hostname>.<domain>` for each domain from `settings.resolveDomains()` — just the base domain (`localhost`) by default, plus the Tailscale domain when enabled
+6. With Tailscale on, the bare Tailscale domain (`http://gantry.internal`) also serves the Gantry UI — it's what gets typed on a phone. Bare `localhost` is deliberately left alone so stock output is unchanged
 
 ### Settings + Tailscale access
 

@@ -135,7 +135,7 @@
         <h3>Status</h3>
         <dl>
           <dt>Routes</dt>
-          <dd>matching <code>*.{$settings.values['tailscale.domain']}</code> on port 80</dd>
+          <dd>matching <code>*.{$settings.values['tailscale.domain']}</code> on port 80 — this UI also answers on bare <code>http://{$settings.values['tailscale.domain']}</code></dd>
           <dt>DNS responder</dt>
           <dd>
             {#if !$settings.values['tailscale.dns_enabled']}

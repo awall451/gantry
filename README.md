@@ -71,7 +71,7 @@ Off by default. Turn it on under **Settings → Tailscale** and Gantry will:
 1. Match every route on a second suffix (default `gantry.internal`) in addition to `.localhost`.
 2. Run a tiny built-in DNS responder on this host's Tailscale IP, port 53, that answers `*.gantry.internal` with that IP.
 
-Then, once, in the [Tailscale admin console → DNS](https://login.tailscale.com/admin/dns): **Add nameserver → Custom**, nameserver = this host's Tailscale IP, **Restrict to domain** = `gantry.internal`. The Settings page shows these steps with your values filled in. Any device on the tailnet can now open `http://<container>.gantry.internal`.
+Then, once, in the [Tailscale admin console → DNS](https://login.tailscale.com/admin/dns): **Add nameserver → Custom**, nameserver = this host's Tailscale IP, **Restrict to domain** = `gantry.internal`. The Settings page shows these steps with your values filled in. Any device on the tailnet can now open `http://<container>.gantry.internal`, and `http://gantry.internal` is the Gantry UI.
 
 Traffic is plain HTTP inside Tailscale's encrypted tunnel. Nothing is exposed outside the tailnet.
 
