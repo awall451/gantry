@@ -10,6 +10,7 @@ frontend/build/
 backend/public/
 .env
 .claude/
+CLAUDE.*.md
 
 # Tests
 coverage/

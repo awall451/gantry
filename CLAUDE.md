@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # Gantry
 
+Machine-, tailnet- and owner-specific facts live in `CLAUDE.local.md` (gitignored). Keep this file and the README free of them — the repo is meant to be public.
+
 Smart local reverse proxy + Docker management UI: auto-discovers containers, routes `*.localhost` subdomains, manages routes and containers via web UI (Portainer-style).
 
 ## Commands
@@ -176,7 +178,7 @@ Apps with separate frontend + API containers break when accessed via `*.localhos
 
 **Workaround:** Add `allow_origin_regex=r"http://.*\.localhost(:\d+)?"` to each API's CORS config.
 
-**Better fix:** Sub-path routing — e.g., `timelog.localhost/api/*` → `timelog-vibed-api-1:8888`. Requires:
+**Better fix:** Sub-path routing — e.g., `myapp.localhost/api/*` → `myapp-api-1:8888`. Requires:
 - UI: "linked routes" — path prefix on one route → another route's upstream
 - DB: `sub_routes` table (`parent_route_id`, `path_prefix`, `target_port`)
 - Caddy config builder: emit path-matched routes before catch-all host route
