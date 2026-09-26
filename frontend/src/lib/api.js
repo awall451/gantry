@@ -33,6 +33,10 @@ export const api = {
   // Networks
   getNetworks:  () => fetch('/api/networks').then(json),
 
+  // Settings
+  getSettings:    ()    => fetch('/api/settings').then(json),
+  updateSettings: patch => fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) }).then(json),
+
   // Docker analytics
   getAllContainerStats: (params = {}) => {
     const q = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v)));

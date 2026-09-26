@@ -3,6 +3,7 @@
   import { wsMessage } from '$lib/ws';
   import { api } from '$lib/api';
   import ContainerCard from '$lib/components/ContainerCard.svelte';
+  import { settings } from '$lib/settings';
 
   let containers = [];
   let routes = [];
@@ -84,7 +85,7 @@
       <form on:submit|preventDefault={submitAdd}>
         <label>Name<input bind:value={addForm.container_name} placeholder="my-service" required /></label>
         <label>Hostname<input bind:value={addForm.hostname} placeholder="my-service" required />
-          <small>.localhost</small></label>
+          <small>.{$settings.values['general.base_domain']}</small></label>
         <label>Port<input type="number" bind:value={addForm.target_port} placeholder="3000" required /></label>
         {#if addError}<p class="error">{addError}</p>{/if}
         <div class="modal-actions">

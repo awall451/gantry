@@ -325,7 +325,7 @@
   {#if proxyLoading}
     <p class="empty">Loading...</p>
   {:else if proxyData.length === 0}
-    <p class="empty">No proxy analytics yet. Make requests through *.localhost routes.</p>
+    <p class="empty">No proxy analytics yet. Make requests through your proxy routes.</p>
   {:else}
     <div class="charts">
       <div class="chart-box">

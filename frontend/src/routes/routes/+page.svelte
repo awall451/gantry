@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { wsMessage } from '$lib/ws';
   import { api } from '$lib/api';
+  import { settings, hostsFor } from '$lib/settings';
 
   let routes = [];
   let editingId = null;
@@ -78,7 +79,9 @@
               on:keydown={e => { if (e.key === 'Enter') saveEdit(r); else if (e.key === 'Escape') cancelEdit(); }}
             />
           {:else}
-            <span class="hostname">{r.hostname}.localhost</span>
+            {#each hostsFor(r.hostname, $settings.values) as h, i}
+              <span class="hostname" class:secondary={i > 0}>{h}</span>
+            {/each}
           {/if}
         </td>
         <td class="muted">{r.container_name}</td>
@@ -123,7 +126,8 @@
   tr.disabled { opacity: 0.45; }
 
   .actions-cell { display: flex; align-items: center; gap: 0.25rem; justify-content: flex-end; }
-  .hostname { font-weight: 500; color: #7c84ff; }
+  .hostname { font-weight: 500; color: #7c84ff; display: block; }
+  .hostname.secondary { color: #64748b; font-weight: 400; font-size: 0.8rem; }
 
   .inline-edit {
     background: #0f1117; border: 1px solid #7c84ff; border-radius: 4px;

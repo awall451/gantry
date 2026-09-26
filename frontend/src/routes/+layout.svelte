@@ -1,9 +1,16 @@
 <script>
   import { onMount } from 'svelte';
-  import { connectWs } from '$lib/ws';
+  import { connectWs, wsMessage } from '$lib/ws';
+  import { loadSettings, applyServerPayload } from '$lib/settings';
   import { page } from '$app/stores';
 
-  onMount(connectWs);
+  onMount(() => {
+    connectWs();
+    loadSettings();
+  });
+
+  // Settings saved in another tab (or by the MCP) reach every page live.
+  $: if ($wsMessage?.type === 'settings:updated') applyServerPayload({ values: $wsMessage.values });
 
   $: path = $page.url.pathname;
 
@@ -26,6 +33,12 @@
         { href: '/images',     label: 'Images',     icon: '◫', exact: true },
         { href: '/volumes',    label: 'Volumes',    icon: '⬡', exact: true },
         { href: '/networks',   label: 'Networks',   icon: '⬡', exact: true },
+      ],
+    },
+    {
+      label: 'System',
+      links: [
+        { href: '/settings', label: 'Settings', icon: '⚙', exact: true },
       ],
     },
   ];

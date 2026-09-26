@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api';
   import { wsSend, statsStore } from '$lib/ws';
+  import { settings, hostsFor, primaryUrl } from '$lib/settings';
 
   export let container;
   export let route;
@@ -12,7 +13,7 @@
 
   $: localRunning = container.running;
   $: hostname = route ? route.hostname : container.name;
-  $: url = `http://${hostname}.localhost`;
+  $: url = primaryUrl(hostname, $settings.values);
   $: stats = $statsStore[container.id];
 
   async function action(act) {
@@ -91,7 +92,7 @@
         {#if route}
           <span class="dk">Route</span>
           <span class="dv">
-            {route.hostname}.localhost
+            {#each hostsFor(route.hostname, $settings.values) as h, i}{#if i}<span class="muted"> · </span>{/if}{h}{/each}
             {#if !route.enabled}<span class="tag warn">disabled</span>{/if}
             <span class="tag {route.is_auto ? 'auto' : 'manual'}">{route.is_auto ? 'auto' : 'manual'}</span>
           </span>
