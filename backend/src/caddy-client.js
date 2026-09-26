@@ -1,17 +1,24 @@
 const { getEnabledRoutes } = require('./db');
+const { DEFAULTS, loadSettings, resolveDomains } = require('./settings');
 
 const CADDY_ADMIN = process.env.CADDY_ADMIN || 'http://localhost:2019';
 const LOG_FILE = process.env.LOG_PATH || '/logs/access.log';
 const BACKEND_PORT = process.env.PORT || 3001;
 
-function buildConfig(routes) {
+// Every route is matched on `<hostname>.<domain>` for each configured domain
+// (just `localhost` by default; plus the Tailscale domain when that's on).
+// Settings default to DEFAULTS so callers that predate settings still get
+// today's exact output.
+function buildConfig(routes, settings = DEFAULTS) {
+  const domains = resolveDomains(settings);
+  const hosts = name => domains.map(d => `${name}.${d}`);
   const caddyRoutes = [
     {
-      match: [{ host: ['gantry.localhost'] }],
+      match: [{ host: hosts('gantry') }],
       handle: [{ handler: 'reverse_proxy', upstreams: [{ dial: `localhost:${BACKEND_PORT}` }] }],
     },
     ...routes.map(r => ({
-      match: [{ host: [`${r.hostname}.localhost`] }],
+      match: [{ host: hosts(r.hostname) }],
       handle: [{ handler: 'reverse_proxy', upstreams: [{ dial: `localhost:${r.target_port}` }] }],
     })),
   ];
@@ -42,7 +49,7 @@ function buildConfig(routes) {
 
 async function pushConfig() {
   const routes = getEnabledRoutes();
-  const config = buildConfig(routes);
+  const config = buildConfig(routes, loadSettings());
 
   try {
     const res = await fetch(`${CADDY_ADMIN}/load`, {

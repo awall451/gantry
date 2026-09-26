@@ -133,3 +133,24 @@ describe('buildConfig', () => {
     });
   });
 });
+
+describe('buildConfig with settings (domains)', () => {
+  const base = { 'general.base_domain': 'localhost', 'tailscale.enabled': false, 'tailscale.domain': 'gantry.internal' };
+
+  it('with tailscale off, output is byte-identical to the settings-less call', () => {
+    const routes = [makeRoute({ hostname: 'a', target_port: 1 })];
+    expect(buildConfig(routes, base)).toEqual(buildConfig(routes));
+  });
+
+  it('with tailscale on, every route matches both suffixes, base first', () => {
+    const cfg = buildConfig([makeRoute({ hostname: 'a', target_port: 1 })], { ...base, 'tailscale.enabled': true });
+    const routes = cfg.apps.http.servers.main.routes;
+    expect(routes[0].match[0].host).toEqual(['gantry.localhost', 'gantry.gantry.internal']);
+    expect(routes[1].match[0].host).toEqual(['a.localhost', 'a.gantry.internal']);
+  });
+
+  it('honors a non-default base domain', () => {
+    const cfg = buildConfig([makeRoute({ hostname: 'a' })], { ...base, 'general.base_domain': 'lab.test' });
+    expect(cfg.apps.http.servers.main.routes[1].match[0].host).toEqual(['a.lab.test']);
+  });
+});
