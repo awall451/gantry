@@ -73,7 +73,7 @@
     <tbody>
       {#each events as e (e.id ?? `${e.occurred_at}${e.container_id}${e.action}`)}
         <tr>
-          <td class="mono muted">{e.occurred_at.replace('T', ' ')}</td>
+          <td class="mono muted"><span class="date">{e.occurred_at.slice(0, 10)}</span> <span class="time">{e.occurred_at.slice(11, 19)}</span></td>
           <td>
             {#if e.container_id}
               <a href="/containers/{e.container_id}" class="name-link">{e.container_name}</a>
@@ -145,6 +145,7 @@
   }
   .filters { flex-wrap: wrap; }
   @media (max-width: 640px) {
-    .mono { font-size: 0.72rem; }
+    .mono { font-size: 0.72rem; white-space: nowrap; }
+    .date { display: block; }
   }
 </style>
