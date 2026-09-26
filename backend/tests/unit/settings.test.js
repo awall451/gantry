@@ -1,18 +1,17 @@
-// Real SQLite in a temp file. vi.mock() cannot intercept the Node-native
-// require() that src files use, so mocking db.js here would silently hit the
-// real database (it did, once — and wrote a setting into data/proxy.db).
+// Real SQLite in a temp file, one per test, via closeDb(). Never mock db.js:
+// vi.mock() cannot intercept the Node-native require() inside src, and the
+// fallback DB_PATH is the real data/proxy.db.
 const { makeTestDbPath, cleanupTestDb } = require('../helpers/db');
+const db = require('../../src/db');
+const settings = require('../../src/settings');
 
-let db, settings, dbPath;
+let dbPath;
 beforeEach(() => {
   dbPath = makeTestDbPath();
   process.env.DB_PATH = dbPath;
-  delete require.cache[require.resolve('../../src/db')];
-  delete require.cache[require.resolve('../../src/settings')];
-  db = require('../../src/db');
-  settings = require('../../src/settings');
 });
 afterEach(() => {
+  db.closeDb();
   delete process.env.DB_PATH;
   cleanupTestDb(dbPath);
 });

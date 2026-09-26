@@ -2,26 +2,27 @@ const request = require('supertest');
 const express = require('express');
 const { makeTestDbPath, cleanupTestDb } = require('../helpers/db');
 
-let app, dbPath, dns, tlsStatus, pushCalls;
+// Side effects are stubbed on the real module objects (CJS hands every
+// require() the same object), so the API under test calls our stubs without
+// any module-graph mocking. The DB is a fresh temp file per test via closeDb().
+const db = require('../../src/db');
+const caddy = require('../../src/caddy-client');
+const dns = require('../../src/dns-server');
+const tlsStatus = require('../../src/tls-status');
+const settingsRouter = require('../../src/api/settings');
+
+let app, dbPath, pushCalls;
 
 beforeEach(() => {
   dbPath = makeTestDbPath();
   process.env.DB_PATH = dbPath;
-  for (const m of ['db', 'settings', 'dns-server', 'caddy-client', 'tls-status', 'tailscale', 'api/settings']) {
-    delete require.cache[require.resolve(`../../src/${m}`)];
-  }
-  // Stub the side effects at their real module objects (CJS: same object
-  // every require) — the API must call pushConfig + dns start/stop, but the
-  // test must not touch Caddy or bind :53.
-  const caddy = require('../../src/caddy-client');
+
   pushCalls = 0;
   caddy.pushConfig = async () => { pushCalls++; return true; };
-  dns = require('../../src/dns-server');
   dns.start = vi.fn(async ({ ip, port }) => ({ running: true, bind: `${ip}:${port}`, error: null }));
   dns.stop = vi.fn(async () => {});
   dns.getState = vi.fn(() => ({ running: false, bind: null, error: null }));
   dns.pickTailscaleIp = () => ({ ip: '100.1.2.3', iface: 'tailscale0' });
-  tlsStatus = require('../../src/tls-status');
   tlsStatus.probeCert = vi.fn(async () => ({ error: 'ECONNREFUSED' }));
   tlsStatus.listenersOn = () => ['0.0.0.0', '100.1.2.3'];
   tlsStatus.tokenPresent = () => false;
@@ -29,10 +30,11 @@ beforeEach(() => {
   app = express();
   app.use(express.json());
   app.use((req, _res, next) => { req.broadcast = () => {}; next(); });
-  app.use('/api/settings', require('../../src/api/settings'));
+  app.use('/api/settings', settingsRouter);
 });
 
 afterEach(() => {
+  db.closeDb();
   delete process.env.DB_PATH;
   cleanupTestDb(dbPath);
 });
