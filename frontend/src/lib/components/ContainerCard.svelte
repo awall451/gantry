@@ -225,6 +225,17 @@
   .route-link.alt { color: #64748b; }
   .route-link:hover { text-decoration: underline; }
 
+  /* Touch screens: 44px action buttons whatever the width (landscape phones too). */
+  @media (pointer: coarse) {
+    .actions { gap: 0.4rem; }
+    .icon-btn { min-width: 44px; min-height: 44px; font-size: 0.9rem; }
+  }
+
+  /* Landscape phones / small tablets: same columns, but fluid instead of fixed. */
+  @media (max-width: 900px) {
+    .row { grid-template-columns: 20px 10px minmax(0, 1.2fr) minmax(0, 1fr) 56px minmax(0, 1.5fr) auto auto; gap: 0.5rem; }
+  }
+
   /* Phones: two/three-line row — name, then port + url, then stats; actions on the right. */
   @media (max-width: 640px) {
     .row {
