@@ -224,4 +224,31 @@
   .route-link { color: #7c84ff; }
   .route-link.alt { color: #64748b; }
   .route-link:hover { text-decoration: underline; }
+
+  /* Phones: two/three-line row — name, then port + url, then stats; actions on the right. */
+  @media (max-width: 640px) {
+    .row {
+      grid-template-columns: 14px 10px auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        "chev dot name  name  act"
+        ".    .   port  url   act"
+        ".    .   stats stats act";
+      gap: 0.25rem 0.5rem;
+      padding: 0.6rem 0.75rem;
+    }
+    .chevron { grid-area: chev; }
+    .status-dot { grid-area: dot; }
+    .name { grid-area: name; }
+    .image { display: none; }           /* shown in the expanded panel */
+    .port { grid-area: port; }
+    .url { grid-area: url; min-width: 0; }
+    .stats-inline { grid-area: stats; flex-direction: row; gap: 0.75rem; }
+    .stats-inline:empty { display: none; }
+    .actions { grid-area: act; align-self: center; }
+
+    .detail { flex-direction: column; gap: 0.75rem; padding: 0.75rem; }
+    .detail-grid { grid-template-columns: 64px minmax(0, 1fr); }
+    .dv { overflow-wrap: anywhere; }
+    .detail-actions { align-self: flex-end; }
+  }
 </style>

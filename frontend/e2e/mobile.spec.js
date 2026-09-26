@@ -92,8 +92,9 @@ for (const p of PAGES) {
 test('dashboard: expanded row fits and its actions are tappable', async ({ page }, info) => {
   await page.goto('/');
   await settle(page);
-  const row = page.locator('.row').first();
-  await row.click();
+  // Click the name, not the row centre: on phones the centre is the URL link.
+  await page.locator('.row .name').first().click();
+  await expect(page.locator('.row-wrap.expanded .detail').first()).toBeVisible();
   await page.waitForTimeout(300);
   await shot(page, info.project.name, 'dashboard-expanded');
   await expectFits(page, 'dashboard-expanded');
