@@ -83,10 +83,10 @@ server.tool("list_routes", "List all Gantry proxy routes (auto-discovered and ma
 
 server.tool(
   "add_route_alias",
-  "Add a short hostname alias for a container (e.g. 'timelog' → timelog.localhost). Caddy appends .localhost at config build.",
+  "Add a short hostname alias for a container (e.g. 'timelog' → timelog.localhost). Caddy appends the configured base domain (default .localhost) — and the Tailscale domain too when that is enabled in Settings.",
   {
     container_name: z.string().describe("Full container name (e.g. timelog-vibed-frontend-1)"),
-    hostname: z.string().describe("Short hostname, stored bare — Caddy appends .localhost"),
+    hostname: z.string().describe("Short hostname, stored bare — Caddy appends the base domain (default .localhost)"),
     target_port: z.number().int().positive().describe("Port the container listens on"),
   },
   async ({ container_name, hostname, target_port }) => {

@@ -54,13 +54,37 @@ Three components on `network_mode: host` so they can dial each other by port wit
 | `api/images.js` | Docker image list + remove |
 | `api/volumes.js` | Docker volume list + remove |
 | `api/networks.js` | Docker network list (read-only) |
+| `api/settings.js` | `GET`/`PUT /api/settings` — validates the whole patch, saves, then `tailscale.apply()` |
+| `settings.js` | Settings schema: `DEFAULTS` (types drive coercion + validation), `loadSettings`, `validate`, `saveSettings`, `resolveDomains` |
+| `tailscale.js` | Turns saved settings into runtime state: re-push Caddy, start/stop the DNS responder on the effective IP. Runs on boot and after every PUT |
+| `dns-server.js` | Dependency-free UDP A-record responder for `*.<tailscale.domain>` → this host's Tailscale IP, plus `pickTailscaleIp()` auto-detect |
 
 ### Data flow: container → route → Caddy
 
 1. `docker-watcher.js` — listens to Docker events (`start`, `die`, `destroy`) → calls `syncContainers()`
 2. `syncContainers()` — upserts routes in SQLite, pushes Caddy config, broadcasts `routes:updated` over WebSocket
 3. `caddy-client.js` — builds full Caddy JSON config from enabled routes, POSTs to `/load` (atomic replace)
-4. `gantry.localhost` always first route, hard-coded to backend port
+4. `gantry.<domain>` always first route, hard-coded to backend port
+5. Every route is matched on `<hostname>.<domain>` for each domain from `settings.resolveDomains()` — just the base domain (`localhost`) by default, plus the Tailscale domain when enabled
+
+### Settings + Tailscale access
+
+**`settings`** table: `key TEXT PK, value TEXT`. Only patched keys are ever stored; defaults live in `backend/src/settings.js` `DEFAULTS` and are mirrored in `frontend/src/lib/settings.js` `DEFAULT_VALUES` (keep both in sync). A stock install must behave exactly as before — Tailscale is opt-in.
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `general.base_domain` | `localhost` | Suffix Caddy appends to every route |
+| `tailscale.enabled` | `false` | Also match `<hostname>.<tailscale.domain>`; run the DNS responder |
+| `tailscale.domain` | `gantry.internal` | Second suffix; the zone the responder answers |
+| `tailscale.ip` | `''` | This host's Tailscale IPv4. Blank = auto-detect (`tailscale*` iface, else any 100.64/10 CGNAT address) |
+| `tailscale.dns_enabled` | `true` | Run the built-in responder (off if you already have one) |
+| `tailscale.dns_port` | `53` | Tailscale split DNS only speaks to :53 |
+
+How tailnet access works: MagicDNS has no wildcard records, so the user adds a **split DNS** nameserver in the Tailscale admin console (nameserver = this host's Tailscale IP, restricted to `tailscale.domain`). Tailnet devices then ask Gantry's responder for `*.gantry.internal`, get this host's Tailscale IP, and hit Caddy on `:80` (already bound to all interfaces) with the matching Host header. The Settings page prints these steps with the live values filled in.
+
+Runtime failures (DNS bind `EACCES`/`EADDRINUSE`/`EADDRNOTAVAIL`, no Tailscale IP) never fail the PUT — they appear in the `status.dns` block and on `/health`. The backend binds `:53` because it runs as root on `network_mode: host`; nothing else is required.
+
+Frontend: `lib/settings.js` store is loaded once in `+layout.svelte` and refreshed on the `settings:updated` broadcast. `hostsFor(hostname, values)` / `primaryUrl()` are the only way hostnames are rendered — never hardcode `.localhost` in a component again.
 
 ### WebSocket architecture
 
@@ -106,16 +130,18 @@ Two critical implementation details:
 | `/images` | Image list + remove |
 | `/volumes` | Volume list + remove |
 | `/networks` | Network list (read-only) |
+| `/settings` | General (base domain) + Tailscale (enable, domain, IP, DNS responder, status, admin-console steps) |
 
 ### Frontend lib
 
 - `lib/ws.js` — WS client. Exports: `connectWs`, `wsSend(data)`, `wsMessage` store, `statsStore` store. Routes `stats:update` messages to `statsStore`, everything else to `wsMessage`.
 - `lib/api.js` — fetch wrapper for all REST endpoints
+- `lib/settings.js` — settings store + `hostsFor` / `primaryUrl` / `applyServerPayload` / `loadSettings`
 - `lib/components/ContainerCard.svelte` — expandable horizontal row (click to expand detail panel)
 
 ### Nav
 
-Left collapsible sidebar (200px expanded / 52px icon-only collapsed). Two groups: Proxy (Dashboard, Routes, Analytics) and Docker (Containers, Images, Volumes, Networks). Toggle with `‹/›` button. State is in-memory only (resets on reload).
+Left collapsible sidebar (200px expanded / 52px icon-only collapsed). Three groups: Proxy (Dashboard, Routes, Analytics), Docker (Containers, Events, Images, Volumes, Networks), System (Settings). Toggle with `‹/›` button. State is in-memory only (resets on reload).
 
 ### Frontend packages
 
