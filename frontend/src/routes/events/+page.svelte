@@ -60,6 +60,7 @@
 {:else if events.length === 0}
   <p class="empty">No events in this time range.</p>
 {:else}
+  <div class="table-scroll">
   <table>
     <thead>
       <tr>
@@ -88,6 +89,7 @@
       {/each}
     </tbody>
   </table>
+  </div>
 {/if}
 
 <style>
@@ -133,4 +135,16 @@
   .name-link:hover { text-decoration: underline; }
 
   .empty { color: #64748b; font-size: 0.9rem; margin-top: 2rem; }
+
+  /* Small screens: the table scrolls sideways inside its own box instead of
+     pushing the page wider; long cells may wrap; header row wraps. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .page-header { flex-wrap: wrap; gap: 0.75rem; }
+  @media (max-width: 640px) {
+    th, td { padding: 0.5rem; }
+  }
+  .filters { flex-wrap: wrap; }
+  @media (max-width: 640px) {
+    .mono { font-size: 0.72rem; }
+  }
 </style>
