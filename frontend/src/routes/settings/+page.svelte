@@ -263,7 +263,7 @@
 
   .preview { color: #7c84ff; font-size: 0.8rem; font-family: ui-monospace, monospace; }
   .hint { color: #64748b; font-size: 0.78rem; line-height: 1.4; }
-  code { font-family: ui-monospace, monospace; background: #0f1117; padding: 0.05rem 0.35rem; border-radius: 4px; color: #c4b5fd; font-size: 0.78rem; }
+  code { font-family: ui-monospace, monospace; background: #0f1117; padding: 0.05rem 0.35rem; border-radius: 4px; color: #c4b5fd; font-size: 0.78rem; overflow-wrap: anywhere; }
 
   .actions { display: flex; justify-content: flex-end; }
   .btn {
@@ -278,7 +278,8 @@
   .sub.dim { opacity: 0.5; }
   .rec { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #4ade80; background: #14532d; padding: 0.15rem 0.45rem; border-radius: 999px; margin-left: 0.5rem; vertical-align: middle; }
   .opt { color: #475569; font-weight: 400; margin-left: 0.3rem; }
-  dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1rem; font-size: 0.85rem; }
+  dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.4rem 1rem; font-size: 0.85rem; }
+  dt, dd { min-width: 0; overflow-wrap: anywhere; }
   dt { color: #64748b; }
   ol { padding-left: 1.25rem; font-size: 0.85rem; line-height: 1.7; color: #cbd5e1; }
   ol a { color: #7c84ff; text-decoration: underline; }
@@ -291,4 +292,14 @@
   .ok { color: #4ade80; font-size: 0.85rem; margin-bottom: 0.75rem; }
   .error, .field-error { color: #f87171; font-size: 0.8rem; }
   .empty { color: #64748b; font-size: 0.9rem; }
+
+  @media (max-width: 640px) {
+    section { padding: 1rem; }
+    dl { grid-template-columns: 1fr; gap: 0.15rem 0; }
+    dt { margin-top: 0.5rem; }
+    dt:first-child { margin-top: 0; }
+    input:not([type=checkbox]) { max-width: none; width: 100%; }
+    .field.narrow input { width: 120px; }
+    .btn { min-height: 44px; }
+  }
 </style>
