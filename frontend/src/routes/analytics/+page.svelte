@@ -202,10 +202,12 @@
   // ── shared chart options ─────────────────────────────────────────
   const baseOpts = (yLabel = '') => ({
     responsive: true,
+    maintainAspectRatio: false,   // .chart-body sets the height
     animation: false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: { display: true, position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } },
+      // Many containers → many legend rows; cap it so the plot keeps most of the box.
+      legend: { display: true, position: 'bottom', maxHeight: 72, labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } },
       tooltip: { callbacks: { title: items => items[0].label } },
     },
     scales: {
@@ -220,6 +222,7 @@
 
   const proxyOpts = {
     responsive: true,
+    maintainAspectRatio: false,   // .chart-body sets the height
     plugins: { legend: { display: false } },
     scales: {
       x: { ticks: { color: '#64748b' }, grid: { color: '#1e2235' } },
@@ -288,15 +291,21 @@
     <div class="charts-col">
       <div class="chart-box wide">
         <h2>CPU Usage (%)</h2>
-        <Line data={cpuChartData} options={cpuOpts} />
+        <div class="chart-body">
+          <Line data={cpuChartData} options={cpuOpts} />
+        </div>
       </div>
       <div class="chart-box wide">
         <h2>Memory Usage (MB)</h2>
-        <Line data={memChartData} options={memOpts} />
+        <div class="chart-body">
+          <Line data={memChartData} options={memOpts} />
+        </div>
       </div>
       <div class="chart-box wide">
         <h2>Network I/O (KB per 30s interval)</h2>
-        <Line data={netChartData} options={netOpts} />
+        <div class="chart-body">
+          <Line data={netChartData} options={netOpts} />
+        </div>
       </div>
     </div>
   {/if}
@@ -330,11 +339,15 @@
     <div class="charts">
       <div class="chart-box">
         <h2>Requests over time</h2>
-        <Line data={lineData} options={proxyOpts} />
+        <div class="chart-body">
+          <Line data={lineData} options={proxyOpts} />
+        </div>
       </div>
       <div class="chart-box">
         <h2>Top routes</h2>
-        <Bar data={barData} options={proxyOpts} />
+        <div class="chart-body">
+          <Bar data={barData} options={proxyOpts} />
+        </div>
       </div>
     </div>
   {/if}
@@ -403,6 +416,7 @@
     background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; padding: 1.25rem;
   }
   h2 { font-size: 0.85rem; color: #94a3b8; margin-bottom: 1rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  .chart-body { position: relative; height: 340px; }
 
   .empty { color: #64748b; font-size: 0.9rem; margin-top: 2rem; }
 
@@ -418,5 +432,6 @@
     .filters label { flex: 1 1 100%; }
     .filters input[type="datetime-local"] { flex: 1; min-width: 0; }
     .chart-box { padding: 0.75rem; }
+    .chart-body { height: 260px; }
   }
 </style>
