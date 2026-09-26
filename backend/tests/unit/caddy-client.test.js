@@ -206,6 +206,9 @@ describe('TLS (tls.enabled)', () => {
   it('tls on: manages the wildcard + apex via ACME DNS-01 (cloudflare, token from env)', () => {
     const cfg = buildConfig([], ts);
     expect(cfg.apps.tls).toEqual({
+      // `automate` is what makes Caddy obtain these at load; with automatic
+      // HTTPS off, policy subjects alone would never trigger issuance.
+      certificates: { automate: ['lab.example.com', '*.lab.example.com'] },
       automation: {
         policies: [{
           subjects: ['lab.example.com', '*.lab.example.com'],

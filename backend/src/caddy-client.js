@@ -89,7 +89,13 @@ function buildConfig(routes, settings = DEFAULTS) {
         },
       },
     };
-    config.apps.tls = { automation: { policies: [{ subjects: tlsSubjects, issuers: [issuer] }] } };
+    config.apps.tls = {
+      // `automate` is what makes Caddy obtain + renew these at load. Policy
+      // `subjects` alone only route names to a policy; with automatic HTTPS
+      // off nothing else would ever ask for the certificate.
+      certificates: { automate: tlsSubjects },
+      automation: { policies: [{ subjects: tlsSubjects, issuers: [issuer] }] },
+    };
   }
 
   return config;
