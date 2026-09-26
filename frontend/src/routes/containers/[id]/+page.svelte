@@ -558,6 +558,7 @@
 
   .term-wrap { height: 60vh; background: #0f1117; border-radius: 8px; overflow: hidden; padding: 0.5rem; }
 
+  .history-controls, .log-controls { flex-wrap: wrap; }
   .history-controls {
     display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; font-size: 0.82rem; color: #94a3b8;
   }
