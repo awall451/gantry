@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api';
   import { wsSend, statsStore } from '$lib/ws';
-  import { settings, hostsFor, primaryUrl } from '$lib/settings';
+  import { settings, hostsFor, primaryUrl, urlFor } from '$lib/settings';
 
   export let container;
   export let route;
@@ -92,7 +92,7 @@
         {#if route}
           <span class="dk">Route</span>
           <span class="dv">
-            {#each hostsFor(route.hostname, $settings.values) as h, i}{#if i}<span class="muted"> · </span>{/if}<a class="route-link" class:alt={i > 0} href="http://{h}" target="_blank" rel="noopener">{h}</a>{/each}
+            {#each hostsFor(route.hostname, $settings.values) as h, i}{#if i}<span class="muted"> · </span>{/if}<a class="route-link" class:alt={i > 0} href={urlFor(h, $settings.values)} target="_blank" rel="noopener">{h}</a>{/each}
             {#if !route.enabled}<span class="tag warn">disabled</span>{/if}
             <span class="tag {route.is_auto ? 'auto' : 'manual'}">{route.is_auto ? 'auto' : 'manual'}</span>
           </span>

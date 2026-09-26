@@ -59,6 +59,7 @@ Three components on `network_mode: host` so they can dial each other by port wit
 | `api/settings.js` | `GET`/`PUT /api/settings` — validates the whole patch, saves, then `tailscale.apply()` |
 | `settings.js` | Settings schema: `DEFAULTS` (types drive coercion + validation), `loadSettings`, `validate`, `saveSettings`, `resolveDomains` |
 | `tailscale.js` | Turns saved settings into runtime state: re-push Caddy, start/stop the DNS responder on the effective IP. Runs on boot and after every PUT |
+| `tls-status.js` | Read-only HTTPS checks: served-cert probe via SNI, `CLOUDFLARE_API_TOKEN` presence, other `:443` listeners from `/proc/net/tcp` |
 | `dns-server.js` | Dependency-free UDP A-record responder for `*.<tailscale.domain>` → this host's Tailscale IP, plus `pickTailscaleIp()` auto-detect |
 
 ### Data flow: container → route → Caddy
@@ -82,12 +83,17 @@ Three components on `network_mode: host` so they can dial each other by port wit
 | `tailscale.ip` | `''` | This host's Tailscale IPv4. Blank = auto-detect (`tailscale*` iface, else any 100.64/10 CGNAT address) |
 | `tailscale.dns_enabled` | `true` | Run the built-in responder (off if you already have one) |
 | `tailscale.dns_port` | `53` | Tailscale split DNS only speaks to :53 |
+| `tls.enabled` | `false` | :443 server + ACME DNS-01 wildcard for the Tailscale domain (Cloudflare; token via env `CLOUDFLARE_API_TOKEN`, never stored) |
+| `tls.acme_email` | `''` | Optional Let's Encrypt account email |
+| `tls.redirect_http` | `true` | 308 http→https on the Tailscale domain only; base domain never redirected |
 
 How tailnet access works: MagicDNS has no wildcard records, so the user adds a **split DNS** nameserver in the Tailscale admin console (nameserver = this host's Tailscale IP, restricted to `tailscale.domain`). Tailnet devices then ask Gantry's responder for `*.gantry.internal`, get this host's Tailscale IP, and hit Caddy on `:80` (already bound to all interfaces) with the matching Host header. The Settings page prints these steps with the live values filled in.
 
+**HTTPS:** `buildConfig` adds a second server `tls` on `:443` with the same proxy routes and `tls_connection_policies: [{}]`, plus `apps.tls.automation.policies` for `[domain, *.domain]` with the `acme` issuer and `challenges.dns.provider.name=cloudflare`, `api_token='{env.CLOUDFLARE_API_TOKEN}'` (Caddy substitutes from its own env at load). `resolvers` are public (1.1.1.1/8.8.8.8) because the Tailscale domain is split-DNS'd to Gantry's responder on this host, which can't see `_acme-challenge` TXT records. **Caddy's automatic HTTPS is disabled explicitly on every server** — it is a no-op while only `:80` exists, but with a `:443` listener it would self-issue for `*.localhost` and redirect the laptop. Caddy image is `caddy/Dockerfile` (xcaddy + `caddy-dns/cloudflare`). `tls-status.js` probes the served cert (SNI to 127.0.0.1:443), reports token presence, and parses `/proc/net/tcp` for other `:443` listeners (a specific-address bind beats Caddy's `0.0.0.0` bind silently — `tailscale serve` does this).
+
 Runtime failures (DNS bind `EACCES`/`EADDRINUSE`/`EADDRNOTAVAIL`, no Tailscale IP) never fail the PUT — they appear in the `status.dns` block and on `/health`. The backend binds `:53` because it runs as root on `network_mode: host`; nothing else is required.
 
-Frontend: `lib/settings.js` store is loaded once in `+layout.svelte` and refreshed on the `settings:updated` broadcast. `hostsFor(hostname, values)` / `primaryUrl()` are the only way hostnames are rendered — never hardcode `.localhost` in a component again. **Links follow the address bar, not a setting:** `currentDomain()` picks whichever configured domain the UI's own `location.hostname` ends with (base domain otherwise), and `hostsFor` puts that one first. Opened on `gantry.localhost` → `*.localhost` links; opened on `gantry.internal` (phone) → `*.gantry.internal` links. Both are listed (the alternate muted) in the routes table and the expanded container row.
+Frontend: `lib/settings.js` store is loaded once in `+layout.svelte` and refreshed on the `settings:updated` broadcast. `hostsFor(hostname, values)` / `urlFor(fqdn, values)` / `primaryUrl()` are the only way hostnames and URLs are rendered (`urlFor` picks `https` only for Tailscale-domain names with `tls.enabled`) — never hardcode `.localhost` in a component again. **Links follow the address bar, not a setting:** `currentDomain()` picks whichever configured domain the UI's own `location.hostname` ends with (base domain otherwise), and `hostsFor` puts that one first. Opened on `gantry.localhost` → `*.localhost` links; opened on `gantry.internal` (phone) → `*.gantry.internal` links. Both are listed (the alternate muted) in the routes table and the expanded container row.
 
 ### WebSocket architecture
 

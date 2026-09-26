@@ -1,7 +1,13 @@
 services:
   caddy:
-    image: caddy:2-alpine
+    # caddy:2-alpine + the Cloudflare DNS plugin (see caddy/Dockerfile).
+    build: ./caddy
     network_mode: host
+    environment:
+      # Only used when HTTPS is enabled in Settings → Tailscale. Put it in a
+      # .env file next to this compose file; it is read by Caddy directly
+      # for the ACME DNS-01 challenge and never stored by Gantry.
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
     volumes:
       - ./logs:/logs
       - ./caddy-data:/data
@@ -20,6 +26,8 @@ services:
       - CADDY_ADMIN=http://localhost:2019
       - DB_PATH=/app/data/proxy.db
       - LOG_PATH=/logs/access.log
+      # Same token, only so the Settings page can say whether it is set.
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
     restart: unless-stopped
     depends_on:
       - caddy

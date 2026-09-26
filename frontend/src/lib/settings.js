@@ -11,6 +11,9 @@ export const DEFAULT_VALUES = Object.freeze({
   'tailscale.ip': '',
   'tailscale.dns_enabled': true,
   'tailscale.dns_port': 53,
+  'tls.enabled': false,
+  'tls.acme_email': '',
+  'tls.redirect_http': true,
 });
 
 export const settings = writable({ values: { ...DEFAULT_VALUES }, status: null, loaded: false });
@@ -43,8 +46,16 @@ export function hostsFor(hostname, values, currentHost) {
   return domains.map(d => `${hostname}.${d}`);
 }
 
+// https only for the Tailscale domain, and only when HTTPS is on; the base
+// domain is always plain http (browsers already treat *.localhost as secure).
+export function urlFor(fqdn, values) {
+  const d = values['tailscale.domain'];
+  const tls = values['tailscale.enabled'] && values['tls.enabled'] && (fqdn === d || fqdn.endsWith(`.${d}`));
+  return `${tls ? 'https' : 'http'}://${fqdn}`;
+}
+
 export function primaryUrl(hostname, values, currentHost) {
-  return `http://${hostsFor(hostname, values, currentHost)[0]}`;
+  return urlFor(hostsFor(hostname, values, currentHost)[0], values);
 }
 
 export function applyServerPayload({ values, status }) {

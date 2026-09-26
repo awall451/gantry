@@ -10,7 +10,8 @@ Smart local reverse proxy + Docker management UI. Auto-discovers containers, rou
 - Request analytics with time-range charts
 - WebSocket push for real-time UI updates
 - Optional Tailscale access: reach every route from your phone or any other tailnet device as `<container>.gantry.internal`, no DNS server or extra containers to run
-- Settings page: base domain, Tailscale options, live status
+- Optional HTTPS for the tailnet names: Let's Encrypt wildcard via Cloudflare DNS-01, obtained and renewed by Caddy itself
+- Settings page: base domain, Tailscale options, HTTPS, live status
 
 ## Quick Start
 
@@ -92,6 +93,19 @@ Links in the UI follow the address you opened Gantry on: open it as `gantry.loca
 
 Traffic is plain HTTP inside Tailscale's encrypted tunnel; nothing is exposed outside the tailnet. If the machine running Gantry is asleep, the names simply don't resolve.
 
+### HTTPS (optional, recommended)
+
+Plain http on the tailnet is already encrypted by Tailscale, but browsers still flag it. **Settings → Tailscale → HTTPS** gets a real certificate instead:
+
+- Use a domain you own as the Tailscale domain, e.g. `lab.example.com`, with its DNS hosted on Cloudflare. Only the tailnet ever resolves names under it — public DNS never learns them.
+- Create a Cloudflare API token scoped to that one zone with permission **DNS:Edit**, and put it in a `.env` next to `docker-compose.yml` (see `.env.example`). Caddy reads it directly; Gantry never stores it.
+- Enable HTTPS in Settings. Caddy requests a wildcard certificate (`*.lab.example.com` + apex) from Let's Encrypt over the DNS-01 challenge and **renews it in-process** — no restarts, no cron.
+- Optional http→https redirect, on that domain only. `*.localhost` is always plain http (browsers already treat it as a secure context).
+
+The Settings page shows whether the token is set, which certificate is currently served and when it expires, and warns if another process holds port 443 on the Tailscale address (a specific-address listener silently beats Caddy's wildcard bind — `tailscale serve` is the usual culprit).
+
+Caveat: TLDs such as `.dev` and `.app` are HTTPS-only in browsers, so on those there is no plain-http fallback. Keep a second, `.internal`-style domain in mind as an escape hatch if issuance ever breaks.
+
 ### Settings
 
 `Settings` (left nav, **System**) holds the base domain (`localhost` by default) and everything Tailscale-related: enable, domain, IP override, the DNS responder toggle and port, plus live status of the responder (running / bind error / no Tailscale IP found). Runtime problems are shown there and on `/health`; they never block saving.
@@ -102,3 +116,4 @@ Traffic is plain HTTP inside Tailscale's encrypted tunnel; nothing is exposed ou
 - Port 80 free (Caddy)
 - Ports 3001 and 2019 free (backend + Caddy Admin API)
 - With Tailscale access on: UDP 53 free on the Tailscale interface (systemd-resolved binds only `127.0.0.53`, so this is normally the case) and Tailscale running on the host
+- With HTTPS on: port 443 free, a Cloudflare-hosted domain, and `CLOUDFLARE_API_TOKEN` in `.env`

@@ -14,6 +14,8 @@
   $: detected = status?.tailscale?.detected;
   $: effectiveIp = status?.tailscale?.effectiveIp || '';
   $: dns = status?.dns;
+  $: tlsS = status?.tls;
+  $: scheme = $settings.values['tls.enabled'] ? 'https' : 'http';
 
   onMount(loadSettings);
 
@@ -130,6 +132,73 @@
       </button>
     </div>
 
+    <div class="sub" class:dim={!form['tailscale.enabled']}>
+      <header>
+        <h2>HTTPS <span class="rec">recommended</span></h2>
+        <p class="hint">
+          A real certificate for <code>*.{form['tailscale.domain']}</code> from Let's Encrypt, obtained and renewed by Caddy in-process
+          (no restarts). Needs a domain you own with DNS on Cloudflare, and a <code>CLOUDFLARE_API_TOKEN</code>
+          (zone-scoped, DNS:Edit) in the <code>.env</code> next to <code>docker-compose.yml</code>.
+          Off = plain http on the tailnet, which is still encrypted by Tailscale itself.
+        </p>
+      </header>
+
+      <div class="field row">
+        <label class="switch">
+          <input type="checkbox" bind:checked={form['tls.enabled']} />
+          <span>Enable HTTPS on the Tailscale domain</span>
+        </label>
+        {#if tlsS && !tlsS.tokenPresent}
+          <span class="field-error">CLOUDFLARE_API_TOKEN is not set — Caddy cannot obtain a certificate until it is (then <code>docker compose up -d</code>).</span>
+        {/if}
+      </div>
+
+      <div class="field">
+        <label for="acme">ACME account email <span class="opt">optional</span></label>
+        <input id="acme" type="email" bind:value={form['tls.acme_email']} placeholder="you@example.com" spellcheck="false" />
+        {#if errors['tls.acme_email']}<span class="field-error">{errors['tls.acme_email']}</span>{/if}
+        <span class="hint">Let's Encrypt uses it for expiry warnings only.</span>
+      </div>
+
+      <div class="field row">
+        <label class="switch">
+          <input type="checkbox" bind:checked={form['tls.redirect_http']} />
+          <span>Redirect http → https on the Tailscale domain</span>
+        </label>
+        <span class="hint">Only that domain; <code>*.{form['general.base_domain']}</code> is never redirected. Some TLDs (<code>.dev</code>, <code>.app</code>) are HTTPS-only in browsers regardless.</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn" disabled={!!saving}
+          on:click={() => save(['tls.enabled', 'tls.acme_email', 'tls.redirect_http'])}>
+          Save
+        </button>
+      </div>
+
+      {#if $settings.values['tailscale.enabled'] && $settings.values['tls.enabled']}
+        <div class="status-box">
+          <h3>Certificate</h3>
+          <dl>
+            <dt>Token</dt>
+            <dd>{#if tlsS?.tokenPresent}<span class="tag on">set</span>{:else}<span class="tag err">missing</span>{/if}</dd>
+            <dt>Served for <code>{$settings.values['tailscale.domain']}</code></dt>
+            <dd>
+              {#if tlsS?.cert?.error}
+                <span class="tag err">none yet</span> <span class="hint">{tlsS.cert.error} — Caddy may still be requesting it; see <code>docker compose logs caddy</code>.</span>
+              {:else if tlsS?.cert}
+                <span class="tag on">ok</span> issued by <code>{tlsS.cert.issuer}</code>, expires {tlsS.cert.validTo.slice(0, 10)} ({tlsS.cert.daysLeft} days)
+                {#if tlsS.cert.selfSigned}<span class="tag err">self-signed</span>{/if}
+              {/if}
+            </dd>
+            {#if tlsS?.conflicts?.length}
+              <dt>Port 443</dt>
+              <dd><span class="tag err">conflict</span> <span class="hint">already bound on {tlsS.conflicts.join(', ')} by another process — tailnet HTTPS to that address will not reach Gantry. Free it (e.g. <code>tailscale serve reset</code>).</span></dd>
+            {/if}
+          </dl>
+        </div>
+      {/if}
+    </div>
+
     {#if $settings.values['tailscale.enabled']}
       <div class="status-box">
         <h3>Status</h3>
@@ -155,7 +224,7 @@
           <li>Under <b>Nameservers</b> choose <b>Add nameserver → Custom</b>.</li>
           <li>Nameserver: <code>{effectiveIp || '<this host’s Tailscale IP>'}</code></li>
           <li>Turn on <b>Restrict to domain</b> and enter <code>{$settings.values['tailscale.domain']}</code>.</li>
-          <li>Save. Other tailnet devices now resolve <code>&lt;container&gt;.{$settings.values['tailscale.domain']}</code> to this machine.</li>
+          <li>Save. Other tailnet devices now open <code>{scheme}://&lt;container&gt;.{$settings.values['tailscale.domain']}</code> on this machine.</li>
         </ol>
         <p class="hint">Only queries for that domain reach Gantry; everything else keeps using your normal DNS. Traffic is plain HTTP inside the tailnet's encrypted tunnel.</p>
       </div>
@@ -205,6 +274,10 @@
   .btn:disabled { opacity: 0.5; cursor: default; }
 
   .status-box { border-top: 1px solid #2d3148; padding-top: 0.5rem; }
+  .sub { border-top: 1px solid #2d3148; padding-top: 1rem; display: flex; flex-direction: column; gap: 1rem; transition: opacity 0.15s; }
+  .sub.dim { opacity: 0.5; }
+  .rec { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #4ade80; background: #14532d; padding: 0.15rem 0.45rem; border-radius: 999px; margin-left: 0.5rem; vertical-align: middle; }
+  .opt { color: #475569; font-weight: 400; margin-left: 0.3rem; }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1rem; font-size: 0.85rem; }
   dt { color: #64748b; }
   ol { padding-left: 1.25rem; font-size: 0.85rem; line-height: 1.7; color: #cbd5e1; }

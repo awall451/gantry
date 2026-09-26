@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { wsMessage } from '$lib/ws';
   import { api } from '$lib/api';
-  import { settings, hostsFor } from '$lib/settings';
+  import { settings, hostsFor, urlFor } from '$lib/settings';
 
   let routes = [];
   let editingId = null;
@@ -80,7 +80,7 @@
             />
           {:else}
             {#each hostsFor(r.hostname, $settings.values) as h, i}
-              <a class="hostname" class:secondary={i > 0} href="http://{h}" target="_blank" rel="noopener">{h}</a>
+              <a class="hostname" class:secondary={i > 0} href={urlFor(h, $settings.values)} target="_blank" rel="noopener">{h}</a>
             {/each}
           {/if}
         </td>

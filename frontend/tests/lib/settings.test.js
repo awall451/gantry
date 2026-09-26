@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { settings, DEFAULT_VALUES, hostsFor, primaryUrl, applyServerPayload } from '../../src/lib/settings';
+import { settings, DEFAULT_VALUES, hostsFor, primaryUrl, urlFor, applyServerPayload } from '../../src/lib/settings';
 
 const stock = { ...DEFAULT_VALUES };
 
@@ -71,5 +71,23 @@ describe('primaryUrl follows the domain the UI was opened on', () => {
   it('hostsFor puts the current network first so the primary link is hosts[0]', () => {
     expect(hostsFor('x', ts, 'gantry.internal')).toEqual(['x.gantry.internal', 'x.localhost']);
     expect(hostsFor('x', ts, 'gantry.localhost')).toEqual(['x.localhost', 'x.gantry.internal']);
+  });
+});
+
+describe('urlFor / primaryUrl with HTTPS on', () => {
+  const tlsOn = { ...stock, 'tailscale.enabled': true, 'tailscale.domain': 'lab.example.com', 'tls.enabled': true };
+
+  it('tailscale-domain hosts get https, base-domain hosts stay http', () => {
+    expect(urlFor('x.lab.example.com', tlsOn)).toBe('https://x.lab.example.com');
+    expect(urlFor('x.localhost', tlsOn)).toBe('http://x.localhost');
+  });
+
+  it('primaryUrl opened from the tailnet is https', () => {
+    expect(primaryUrl('x', tlsOn, 'lab.example.com')).toBe('https://x.lab.example.com');
+    expect(primaryUrl('x', tlsOn, 'gantry.localhost')).toBe('http://x.localhost');
+  });
+
+  it('tls off → http everywhere', () => {
+    expect(urlFor('x.lab.example.com', { ...tlsOn, 'tls.enabled': false })).toBe('http://x.lab.example.com');
   });
 });
