@@ -8,9 +8,9 @@ function payload(values, status) {
   return { values, status };
 }
 
-router.get('/', (_req, res) => {
+router.get('/', async (_req, res) => {
   const values = loadSettings();
-  res.json(payload(values, tailscale.status(values)));
+  res.json(payload(values, await tailscale.status(values)));
 });
 
 // Partial update. Validates the whole patch first so a bad field never

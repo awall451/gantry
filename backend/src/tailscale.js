@@ -8,6 +8,7 @@
 
 const caddy = require('./caddy-client');
 const dns = require('./dns-server');
+const tlsStatus = require('./tls-status');
 const { loadSettings } = require('./settings');
 
 // Auto-detect unless the user pinned an IP.
@@ -41,14 +42,23 @@ async function apply(settings = loadSettings()) {
   return status(settings);
 }
 
-function status(settings = loadSettings()) {
+async function status(settings = loadSettings()) {
   const dnsState = dns.getState();
+  const tlsOn = settings['tailscale.enabled'] && settings['tls.enabled'];
+  // Anything bound to a specific address on :443 beats Caddy's 0.0.0.0 bind
+  // for that address, silently. Surface it so the user can free the port.
+  const conflicts = tlsStatus.listenersOn(443).filter(ip => ip !== '0.0.0.0');
   return {
     tailscale: {
       detected: dns.pickTailscaleIp(),
       effectiveIp: effectiveIp(settings),
     },
     dns: lastDnsError ? { ...dnsState, error: lastDnsError } : dnsState,
+    tls: {
+      tokenPresent: tlsStatus.tokenPresent(),
+      conflicts,
+      cert: tlsOn ? await tlsStatus.probeCert({ domain: settings['tailscale.domain'] }) : null,
+    },
   };
 }
 

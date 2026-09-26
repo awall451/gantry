@@ -34,7 +34,7 @@ app.get('/health', async (_req, res) => {
     status: 'ok',
     caddy: await caddyHealthy(),
     docker: await dockerHealthy(),
-    dns: tailscale.status().dns,
+    dns: (await tailscale.status()).dns,
   });
 });
 

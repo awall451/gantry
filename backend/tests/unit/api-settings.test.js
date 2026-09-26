@@ -2,12 +2,12 @@ const request = require('supertest');
 const express = require('express');
 const { makeTestDbPath, cleanupTestDb } = require('../helpers/db');
 
-let app, dbPath, dns, pushCalls;
+let app, dbPath, dns, tlsStatus, pushCalls;
 
 beforeEach(() => {
   dbPath = makeTestDbPath();
   process.env.DB_PATH = dbPath;
-  for (const m of ['db', 'settings', 'dns-server', 'caddy-client', 'tailscale', 'api/settings']) {
+  for (const m of ['db', 'settings', 'dns-server', 'caddy-client', 'tls-status', 'tailscale', 'api/settings']) {
     delete require.cache[require.resolve(`../../src/${m}`)];
   }
   // Stub the side effects at their real module objects (CJS: same object
@@ -21,6 +21,10 @@ beforeEach(() => {
   dns.stop = vi.fn(async () => {});
   dns.getState = vi.fn(() => ({ running: false, bind: null, error: null }));
   dns.pickTailscaleIp = () => ({ ip: '100.1.2.3', iface: 'tailscale0' });
+  tlsStatus = require('../../src/tls-status');
+  tlsStatus.probeCert = vi.fn(async () => ({ error: 'ECONNREFUSED' }));
+  tlsStatus.listenersOn = () => ['0.0.0.0', '100.1.2.3'];
+  tlsStatus.tokenPresent = () => false;
 
   app = express();
   app.use(express.json());
@@ -42,6 +46,22 @@ describe('GET /api/settings', () => {
     expect(res.body.status.tailscale.detected).toEqual({ ip: '100.1.2.3', iface: 'tailscale0' });
     expect(res.body.status.tailscale.effectiveIp).toBe('100.1.2.3');
     expect(res.body.status.dns).toEqual({ running: false, bind: null, error: null });
+  });
+
+  it('reports token presence and :443 conflicts even with tls off; no cert probe until tls is on', async () => {
+    const res = await request(app).get('/api/settings');
+    expect(res.body.status.tls).toEqual({ tokenPresent: false, conflicts: ['100.1.2.3'], cert: null });
+    expect(tlsStatus.probeCert).not.toHaveBeenCalled();
+  });
+});
+
+describe('PUT /api/settings (tls)', () => {
+  it('probes the served certificate for the tailscale domain once tls is on', async () => {
+    tlsStatus.probeCert = vi.fn(async () => ({ subject: 'gantry.internal', issuer: 'R11', daysLeft: 80, selfSigned: false }));
+    const res = await request(app).put('/api/settings').send({ 'tailscale.enabled': true, 'tls.enabled': true });
+    expect(res.status).toBe(200);
+    expect(tlsStatus.probeCert).toHaveBeenCalledWith({ domain: 'gantry.internal' });
+    expect(res.body.status.tls.cert.issuer).toBe('R11');
   });
 });
 
