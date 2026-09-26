@@ -56,6 +56,11 @@ function getDb() {
         occurred_at    TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_cevents ON container_events (container_id, occurred_at);
+
+      CREATE TABLE IF NOT EXISTS settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
     `);
   }
   return db;
@@ -228,9 +233,29 @@ function closeDb() {
   }
 }
 
+function getSetting(key, fallback) {
+  const row = getDb().prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  return row ? row.value : fallback;
+}
+
+function setSetting(key, value) {
+  getDb().prepare(
+    'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+  ).run(key, String(value));
+}
+
+function getAllSettings() {
+  const out = {};
+  for (const row of getDb().prepare('SELECT key, value FROM settings').all()) out[row.key] = row.value;
+  return out;
+}
+
 module.exports = {
   getDb,
   closeDb,
+  getSetting,
+  setSetting,
+  getAllSettings,
   getAllRoutes,
   getEnabledRoutes,
   upsertRoute,
