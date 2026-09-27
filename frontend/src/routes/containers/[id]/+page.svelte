@@ -8,7 +8,7 @@
     CategoryScale, Filler, Tooltip
   } from 'chart.js';
 
-  import { registerSideTooltip, hideTooltipOnTouchEnd } from '$lib/chart-tooltip';
+  import { registerSideTooltip, hideTooltipOnTouchEnd, tooltipStyle, crosshair } from '$lib/chart-tooltip';
   Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip);
   registerSideTooltip(Tooltip);
 
@@ -102,7 +102,7 @@
   function initStatsChart() {
     if (!statsChartEl || statsChart) return;
     statsChart = new Chart(statsChartEl, {
-      plugins: [hideTooltipOnTouchEnd],
+      plugins: [hideTooltipOnTouchEnd, crosshair],
       type: 'line',
       data: {
         labels: statsLabels,
@@ -118,7 +118,7 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,   // .chart-wrap sets the height
-        plugins: { legend: { display: false }, tooltip: { position: 'side', events: ['mousemove', 'mouseout', 'touchstart', 'touchmove'] } },
+        plugins: { legend: { display: false }, tooltip: { ...tooltipStyle, position: 'side', events: ['mousemove', 'mouseout', 'touchstart', 'touchmove'] } },
         scales: {
           x: { ticks: { color: '#64748b', maxTicksLimit: 6 }, grid: { color: '#1e2235' } },
           y: { ticks: { color: '#64748b' }, grid: { color: '#1e2235' }, beginAtZero: true, max: 100 },
@@ -213,7 +213,7 @@
     const baseOpts = {
       responsive: true,
       maintainAspectRatio: false,   // .chart-wrap sets the height
-      plugins: { legend: { display: false }, tooltip: { position: 'side', events: ['mousemove', 'mouseout', 'touchstart', 'touchmove'] } },
+      plugins: { legend: { display: false }, tooltip: { ...tooltipStyle, position: 'side', events: ['mousemove', 'mouseout', 'touchstart', 'touchmove'] } },
       scales: {
         x: { ticks: { color: '#64748b', maxTicksLimit: 8 }, grid: { color: '#1e2235' } },
         y: { ticks: { color: '#64748b' }, grid: { color: '#1e2235' }, beginAtZero: true },
@@ -225,19 +225,19 @@
     netHistChart?.destroy();
 
     cpuHistChart = new Chart(cpuHistChartEl, {
-      plugins: [hideTooltipOnTouchEnd],
+      plugins: [hideTooltipOnTouchEnd, crosshair],
       type: 'line',
       data: { labels, datasets: [{ data: cpuData, borderColor: '#7c84ff', backgroundColor: 'rgba(124,132,255,0.12)', fill: true, tension: 0.3, pointRadius: 0 }] },
       options: { ...baseOpts, scales: { ...baseOpts.scales, y: { ...baseOpts.scales.y, max: 100 } } },
     });
     memHistChart = new Chart(memHistChartEl, {
-      plugins: [hideTooltipOnTouchEnd],
+      plugins: [hideTooltipOnTouchEnd, crosshair],
       type: 'line',
       data: { labels, datasets: [{ data: memData, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.12)', fill: true, tension: 0.3, pointRadius: 0 }] },
       options: baseOpts,
     });
     netHistChart = new Chart(netHistChartEl, {
-      plugins: [hideTooltipOnTouchEnd],
+      plugins: [hideTooltipOnTouchEnd, crosshair],
       type: 'line',
       data: { labels, datasets: [{ data: netData, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.12)', fill: true, tension: 0.3, pointRadius: 0 }] },
       options: baseOpts,

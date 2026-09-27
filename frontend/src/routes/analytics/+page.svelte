@@ -8,7 +8,7 @@
   } from 'chart.js';
   import { replaceState } from '$app/navigation';
   import { api } from '$lib/api';
-  import { registerSideTooltip, hideTooltipOnTouchEnd, hexToRgba } from '$lib/chart-tooltip';
+  import { registerSideTooltip, hideTooltipOnTouchEnd, tooltipStyle, crosshair, hexToRgba } from '$lib/chart-tooltip';
 
   Chart.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
   registerSideTooltip(Tooltip);
@@ -234,6 +234,7 @@
     plugins: {
       legend: { display: false },   // HTML legend below the stat cards
       tooltip: {
+        ...tooltipStyle,
         enabled: sel.size > 0,
         position: 'side',
         // No 'click': on touch, the click after touchend would re-open the
@@ -241,7 +242,7 @@
         events: ['mousemove', 'mouseout', 'touchstart', 'touchmove'],
         filter: (item) => sel.has(item.dataset.label) && item.parsed.y != null,
         itemSort: (a, b) => b.parsed.y - a.parsed.y,
-        callbacks: { title: items => items[0]?.label ?? '' },
+        callbacks: { ...tooltipStyle.callbacks, title: items => items[0]?.label ?? '' },
       },
     },
     scales: {
@@ -253,12 +254,12 @@
   $: cpuOpts = (() => { const o = baseOpts('%', selected); o.scales.y.max = 100; return o; })();
   $: memOpts = baseOpts('MB', selected);
   $: netOpts = baseOpts('KB/30s', selected);
-  const resPlugins = [hideTooltipOnTouchEnd];
+  const resPlugins = [hideTooltipOnTouchEnd, crosshair];
 
   const proxyOpts = {
     responsive: true,
     maintainAspectRatio: false,   // .chart-body sets the height
-    plugins: { legend: { display: false }, tooltip: { position: 'side', events: ['mousemove', 'mouseout', 'touchstart', 'touchmove'] } },
+    plugins: { legend: { display: false }, tooltip: { ...tooltipStyle, position: 'side', events: ['mousemove', 'mouseout', 'touchstart', 'touchmove'] } },
     scales: {
       x: { ticks: { color: '#64748b' }, grid: { color: '#1e2235' } },
       y: { ticks: { color: '#64748b' }, grid: { color: '#1e2235' }, beginAtZero: true },
