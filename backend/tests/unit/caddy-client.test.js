@@ -46,7 +46,19 @@ describe('buildConfig', () => {
       const config = buildConfig([]);
       const main = config.apps.http.servers.main;
       expect(main.listen).toEqual([':80']);
-      expect(main.logs).toEqual({ logger_names: { '*': 'access' } });
+    });
+
+    // Caddy's logger_names map is keyed by hostname and a bare '*' only matches
+    // single-label hosts, so multi-label hosts (every *.localhost route) fell
+    // through to the unnamed http.log.access logger and the file log's
+    // `include` never matched — the access log stayed empty and the Proxy
+    // Traffic analytics never populated. default_logger_name applies to every
+    // host and must line up with the logging.include entry for that server.
+    it('routes every host of server "main" to the logger the file log includes', () => {
+      const config = buildConfig([]);
+      const main = config.apps.http.servers.main;
+      expect(main.logs).toEqual({ default_logger_name: 'main' });
+      expect(config.logging.logs.access.include).toContain('http.log.access.main');
     });
   });
 
@@ -225,6 +237,12 @@ describe('TLS (tls.enabled)', () => {
         }],
       },
     });
+  });
+
+  it('tls on: the :443 server logs to its own named logger, included by the file log', () => {
+    const cfg = buildConfig([], ts);
+    expect(cfg.apps.http.servers.tls.logs).toEqual({ default_logger_name: 'tls' });
+    expect(cfg.logging.logs.access.include).toEqual(['http.log.access.main', 'http.log.access.tls']);
   });
 
   it('tls on, no email: omits the email field rather than sending an empty string', () => {

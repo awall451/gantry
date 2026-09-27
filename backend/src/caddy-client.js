@@ -50,15 +50,21 @@ function buildConfig(routes, settings = DEFAULTS) {
       }]
     : [];
 
-  const server = (listen, routes) => ({
+  // Every request on server <name> logs to `http.log.access.<name>`, which is
+  // what `logging.logs.access.include` lists below. Do not use `logger_names`
+  // here: it is keyed by hostname and a bare '*' only matches single-label
+  // hosts, so `*.localhost` requests fall through to the unnamed logger, the
+  // include never matches, and the access log (hence Proxy Traffic analytics)
+  // stays empty.
+  const server = (name, listen, routes) => ({
     listen,
     automatic_https: { disable: true, disable_redirects: true },
-    logs: { logger_names: { '*': 'access' } },
+    logs: { default_logger_name: name },
     routes,
   });
 
-  const servers = { main: server([':80'], [...redirect, ...proxyRoutes]) };
-  if (tls) servers.tls = { ...server([':443'], proxyRoutes), tls_connection_policies: [{}] };
+  const servers = { main: server('main', [':80'], [...redirect, ...proxyRoutes]) };
+  if (tls) servers.tls = { ...server('tls', [':443'], proxyRoutes), tls_connection_policies: [{}] };
 
   const config = {
     logging: {
