@@ -173,24 +173,34 @@
   }
 
   /* Phones: one card per route. The table display is dropped entirely, so
-     the "no flex on <td>" rule from CLAUDE.md does not apply here. */
+     the "no flex on <td>" rule from CLAUDE.md does not apply here.
+     Fixed grid so pills line up across cards:
+       hostname(s) ................ [edit] [delete]
+       container   :port   [TYPE]   [toggle]        */
   @media (max-width: 640px) {
     .table-scroll { overflow: visible; }
-    table, tbody, tr, td { display: block; }
+    table, tbody { display: block; }
     thead { display: none; }
     tr {
-      display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto auto;
+      grid-template-areas:
+        "host host host actions"
+        "container port type toggle";
+      align-items: center; column-gap: 0.6rem; row-gap: 0.5rem;
       background: #1a1d27; border: 1px solid #2d3148; border-radius: 8px;
-      padding: 0.6rem 0.75rem; margin-bottom: 0.5rem;
+      padding: 0.65rem 0.75rem; margin-bottom: 0.5rem;
     }
-    td { padding: 0; border: none; }
+    td { display: block; padding: 0; border: none; min-width: 0; }
     tr:last-child td { border: none; }
-    .hostname-cell { flex: 1 1 0; min-width: 0; order: 0; }
+    .hostname-cell { grid-area: host; }
     .hostname { overflow-wrap: anywhere; }
-    td:last-child { order: 1; }                       /* actions, same line as hostname */
-    tr::after { content: ''; flex-basis: 100%; height: 0; order: 2; margin: -0.35rem 0; }
-    td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5) { order: 3; font-size: 0.8rem; }
-    td:nth-child(2) { overflow-wrap: anywhere; }
+    td:nth-child(2) { grid-area: container; font-size: 0.8rem; overflow-wrap: anywhere; }
+    td:nth-child(3) { grid-area: port; font-size: 0.8rem; font-family: monospace; }
+    td:nth-child(4) { grid-area: type; justify-self: end; }
+    td:nth-child(5) { grid-area: toggle; justify-self: end; }
+    td:nth-child(6) { grid-area: actions; justify-self: end; }
+    .actions-cell { gap: 0; }
     .inline-edit { width: 100%; }
   }
 </style>
