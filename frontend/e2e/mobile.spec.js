@@ -157,6 +157,33 @@ test('nav: the active link follows in-app navigation', async ({ page }, info) =>
   }
 });
 
+test('analytics: legend chips toggle the highlighted series', async ({ page }, info) => {
+  await page.goto('/analytics');
+  await settle(page);
+  const chips = page.locator('.chip');
+  test.skip((await chips.count()) === 0, 'no resource data recorded yet');
+  // Default: top 3 (or fewer) highlighted and reflected in the URL.
+  const initial = await page.locator('.chip.selected').count();
+  expect(initial).toBeGreaterThan(0);
+  expect(initial).toBeLessThanOrEqual(3);
+  await expect(page).toHaveURL(/[?&]s=/);
+  // Toggle an unselected chip on, then off.
+  const chip = page.locator('.chip:not(.selected)').first();
+  const name = (await chip.textContent()).trim();
+  await chip.click();
+  await expect(page.locator('.chip.selected')).toHaveCount(initial + 1);
+  expect(page.url()).toContain(encodeURIComponent(name).replace(/%2C/g, ','));
+  await page.locator('.chip.selected', { hasText: name }).click();
+  await expect(page.locator('.chip.selected')).toHaveCount(initial);
+  // Clear empties the selection and the URL param.
+  await page.getByRole('button', { name: 'Clear' }).click();
+  await expect(page.locator('.chip.selected')).toHaveCount(0);
+  await expect(page).not.toHaveURL(/[?&]s=/);
+  await shot(page, info.project.name, 'analytics-legend');
+  await expectFits(page, 'analytics-legend');
+  if (isMobile(info.project.name)) await expectTappable(page, '.chip, .mini', 'legend chips');
+});
+
 test.describe('container detail', () => {
   let id;
   test.beforeAll(async ({ request, baseURL }) => {
