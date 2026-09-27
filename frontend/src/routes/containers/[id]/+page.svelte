@@ -33,6 +33,9 @@
   let statsChartEl;
 
   $: stats = $statsStore[id];
+  // The canvas only exists once the first stats frame has arrived, which is
+  // after onMount; create the chart whenever the element gets bound.
+  $: if (statsChartEl && !statsChart) initStatsChart();
   $: if (stats && stats.type !== 'stats:unavailable') updateStatsChart(stats);
 
   // History tab
@@ -248,6 +251,7 @@
     if (tab === activeTab) return;
     if (activeTab === 'logs') disconnectLogs();
     if (activeTab === 'terminal') closeTerminal();
+    if (activeTab === 'overview') { statsChart?.destroy(); statsChart = null; }   // canvas is about to go away
     activeTab = tab;
     await tick();
     if (tab === 'logs') connectLogs();
