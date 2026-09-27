@@ -53,6 +53,7 @@ Three components on `network_mode: host` so they can dial each other by port wit
 | `db.js` | SQLite layer — routes + analytics tables |
 | `log-tail.js` | Tails Caddy access log, aggregates into analytics table |
 | `stats-manager.js` | Per-container CPU/mem polling, subscriber registry |
+| `stats-recorder.js` | 30 s poll of every container into `container_stats`. CPU is the delta against the previous poll's raw sample (`computeStats(raw, prev)`), i.e. the average over the gap — never docker's 1 s pre/cur window, which aliases against periodic bursts (a 15 s healthcheck read as 20%) |
 | `api/containers.js` | Container CRUD + lifecycle + SSE logs + inspect |
 | `api/routes.js` | Proxy route CRUD |
 | `api/analytics.js` | Analytics query |

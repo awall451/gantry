@@ -4,9 +4,13 @@ const { docker } = require('./docker-client');
 const subscribers = new Map(); // containerId -> Set<WebSocket>
 const intervals = new Map();   // containerId -> intervalId
 
-function computeStats(s) {
-  const cpuDelta = s.cpu_stats.cpu_usage.total_usage - s.precpu_stats.cpu_usage.total_usage;
-  const systemDelta = s.cpu_stats.system_cpu_usage - s.precpu_stats.system_cpu_usage;
+// `prev` is an earlier raw sample of the same container. When given, CPU is
+// the average over the whole gap between the two samples; without it, docker's
+// own pre/cur window (~1 s) is used, which only means "right now".
+function computeStats(s, prev) {
+  const base = prev?.cpu_stats ? prev.cpu_stats : s.precpu_stats;
+  const cpuDelta = s.cpu_stats.cpu_usage.total_usage - base.cpu_usage.total_usage;
+  const systemDelta = s.cpu_stats.system_cpu_usage - base.system_cpu_usage;
   const numCpus = s.cpu_stats.online_cpus || s.cpu_stats.cpu_usage.percpu_usage?.length || 1;
   const cpuPercent = systemDelta > 0 ? (cpuDelta / systemDelta) * numCpus * 100 : 0;
 
