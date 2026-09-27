@@ -157,6 +157,30 @@ describe('computeStats', () => {
     });
   });
 
+  // The 30 s recorder passes the previous raw sample so the CPU figure is the
+  // average over the whole poll gap, not docker's 1 s pre/cur window. A 1 s
+  // window every 30 s aliases against anything periodic (a 15 s healthcheck
+  // burst read as a steady 20%).
+  describe('CPU against a previous sample', () => {
+    it('uses the deltas from prev instead of precpu_stats', () => {
+      const prev = { cpu_stats: { cpu_usage: { total_usage: 0 }, system_cpu_usage: 0 } };
+      // delta 2000 / 20000 * 4 cpus * 100 = 40 vs 1000/10000 via precpu = 40 too,
+      // so shift prev to make the two paths differ.
+      const r = computeStats(makeStats(), { cpu_stats: { cpu_usage: { total_usage: 1500 }, system_cpu_usage: 10000 } });
+      expect(r.cpuPercent).toBeCloseTo((500 / 10000) * 4 * 100);
+      expect(computeStats(makeStats(), prev).cpuPercent).toBeCloseTo((2000 / 20000) * 4 * 100);
+    });
+
+    it('clamps to 0 when the container restarted and its counter reset', () => {
+      const prev = { cpu_stats: { cpu_usage: { total_usage: 9000 }, system_cpu_usage: 10000 } };
+      expect(computeStats(makeStats(), prev).cpuPercent).toBe(0);
+    });
+
+    it('ignores a prev sample that lacks cpu_stats', () => {
+      expect(computeStats(makeStats(), {}).cpuPercent).toBeCloseTo(40);
+    });
+  });
+
   describe('memory', () => {
     it('subtracts cache from usage to compute memUsage', () => {
       // usage 200 MiB, cache 50 MiB → effective 150 MiB
