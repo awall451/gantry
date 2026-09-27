@@ -215,3 +215,7 @@ All three services run with `network_mode: host`.
 ## Security notes
 
 Gantry has **no authentication**. It controls your Docker daemon (start/stop, exec into containers, delete images and volumes). Keep it on `localhost` and your tailnet only; never publish port 80/443/3001 to the internet. The Cloudflare token is read by Caddy from `.env` and is never written to the database or shown in the UI.
+
+## License
+
+[MIT](LICENSE).
