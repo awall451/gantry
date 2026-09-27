@@ -499,6 +499,9 @@
   }
   h2 { font-size: 0.85rem; color: #94a3b8; margin-bottom: 1rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
   .chart-body { position: relative; height: 340px; }
+  /* Horizontal finger drags scrub the tooltip; vertical ones still scroll the page.
+     Without this the browser claims the drag as a scroll and cancels the pointer. */
+  .chart-body :global(canvas) { touch-action: pan-y; }
 
   .empty { color: #64748b; font-size: 0.9rem; margin-top: 2rem; }
 

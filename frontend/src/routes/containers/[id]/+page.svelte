@@ -536,6 +536,7 @@
     background: #1a1d27; border: 1px solid #2d3148; border-radius: 8px; padding: 1rem;
     position: relative; height: 260px;
   }
+  .chart-wrap canvas { touch-action: pan-y; }   /* horizontal drag scrubs, vertical scrolls */
 
   .kv-grid {
     display: grid; grid-template-columns: minmax(140px, max-content) 1fr;
