@@ -1,17 +1,19 @@
 // Chart.js helpers shared by the analytics and container-detail charts.
 
-// Tooltip positioner that keeps the box out from under the cursor: anchored
-// to the top of the plot, on the opposite side of the cursor's half.
+// Tooltip positioner that keeps the box away from the cursor: it is pinned to
+// the top corner of the plot on the side the cursor is NOT in, so the
+// crosshair and the hovered points stay uncovered.
 export function registerSideTooltip(Tooltip) {
   if (Tooltip.positioners.side) return;
   Tooltip.positioners.side = function (_items, eventPos) {
     const area = this.chart.chartArea;
     if (!area) return false;
     const mid = (area.left + area.right) / 2;
+    const cursorLeft = eventPos.x <= mid;
     return {
-      x: eventPos.x,
-      y: area.top,
-      xAlign: eventPos.x > mid ? 'right' : 'left',
+      x: cursorLeft ? area.right - 8 : area.left + 8,
+      y: area.top + 4,
+      xAlign: cursorLeft ? 'right' : 'left',
       yAlign: 'top',
     };
   };
@@ -57,7 +59,7 @@ export const hideTooltipOnTouchEnd = {
 // no caret, thin border, muted labels and bolder values. Spread into
 // options.plugins.tooltip.
 export const tooltipStyle = {
-  backgroundColor: 'rgba(30, 34, 53, 0.88)',
+  backgroundColor: 'rgba(30, 34, 53, 0.82)',
   borderColor: '#3d4270',
   borderWidth: 1,
   cornerRadius: 6,
@@ -69,6 +71,9 @@ export const tooltipStyle = {
   bodyColor: '#cbd5e1',
   bodyFont: { size: 11 },
   bodySpacing: 3,
+  footerColor: '#64748b',
+  footerFont: { size: 10, weight: '400' },
+  footerMarginTop: 4,
   boxWidth: 8,
   boxHeight: 8,
   boxPadding: 4,

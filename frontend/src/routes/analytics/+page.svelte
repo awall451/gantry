@@ -222,6 +222,7 @@
   // ── shared chart options ─────────────────────────────────────────
   // Tooltip: only the selected series, sorted by value, anchored beside the
   // cursor rather than under it. Click near a line toggles that series.
+  const TOOLTIP_ROWS = 8;
   const baseOpts = (yLabel, sel) => ({
     responsive: true,
     maintainAspectRatio: false,   // .chart-body sets the height
@@ -240,9 +241,30 @@
         // No 'click': on touch, the click after touchend would re-open the
         // tooltip that hideTooltipOnTouchEnd just closed. Hover/long-press only.
         events: ['mousemove', 'mouseout', 'touchstart', 'touchmove'],
-        filter: (item) => sel.has(item.dataset.label) && item.parsed.y != null,
+        // Selected series only, best values first, at most TOOLTIP_ROWS rows
+        // (with "All" selected a 30-row box would outgrow the plot).
+        filter: (item, _i, _items, data) => {
+          if (!sel.has(item.dataset.label) || item.parsed.y == null) return false;
+          const v = item.parsed.y;
+          let rank = 0;
+          for (const ds of data.datasets) {
+            if (ds === item.dataset || !sel.has(ds.label)) continue;
+            const o = ds.data[item.dataIndex];
+            if (o != null && (o > v || (o === v && ds.label < item.dataset.label))) rank++;
+          }
+          return rank < TOOLTIP_ROWS;
+        },
         itemSort: (a, b) => b.parsed.y - a.parsed.y,
-        callbacks: { ...tooltipStyle.callbacks, title: items => items[0]?.label ?? '' },
+        callbacks: {
+          ...tooltipStyle.callbacks,
+          title: items => items[0]?.label ?? '',
+          footer: (items) => {
+            if (!items.length) return '';
+            const i = items[0].dataIndex;
+            const total = items[0].chart.data.datasets.filter(ds => sel.has(ds.label) && ds.data[i] != null).length;
+            return total > items.length ? `+${total - items.length} more` : '';
+          },
+        },
       },
     },
     scales: {
