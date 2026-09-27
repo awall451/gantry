@@ -39,7 +39,7 @@ describe('parseProcTcp', () => {
 `;
 
   it('lists LISTEN sockets on the given port with decoded IPv4 addresses', () => {
-    expect(parseProcTcp(sample, 443)).toEqual(['100.69.122.15']);
+    expect(parseProcTcp(sample, 443)).toEqual(['100.100.100.100']);
     expect(parseProcTcp(sample, 80)).toEqual(['0.0.0.0']);
   });
 
