@@ -144,6 +144,19 @@ test('nav: phones get a drawer, desktop keeps the sidebar', async ({ page }, inf
   }
 });
 
+test('nav: the active link follows in-app navigation', async ({ page }, info) => {
+  await page.goto('/');
+  await settle(page);
+  const mobile = isMobile(info.project.name);
+  for (const label of ['Containers', 'Settings', 'Dashboard']) {
+    if (mobile) await page.getByRole('button', { name: /open menu/i }).click();
+    await page.locator('nav a', { hasText: label }).click();   // client-side navigation
+    await page.waitForTimeout(400);
+    await expect(page.locator('nav a.active'), `after clicking ${label}`).toHaveText(new RegExp(label));
+    await expect(page.locator('nav a.active')).toHaveCount(1);
+  }
+});
+
 test.describe('container detail', () => {
   let id;
   test.beforeAll(async ({ request, baseURL }) => {

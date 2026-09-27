@@ -51,8 +51,11 @@
     },
   ];
 
-  function isActive(link) {
-    return link.exact ? path === link.href : path.startsWith(link.href);
+  // `path` is a parameter on purpose: Svelte 4 only re-evaluates a template
+  // expression when a variable it references changes, so `isActive(link)`
+  // reading `path` from the closure would freeze on the first page.
+  function isActive(link, current) {
+    return link.exact ? current === link.href : current.startsWith(link.href);
   }
 </script>
 
@@ -85,7 +88,7 @@
           {#each group.links as link}
             <a
               href={link.href}
-              class:active={isActive(link)}
+              class:active={isActive(link, path)}
               title={collapsed ? link.label : ''}
             >
               <span class="icon">{link.icon}</span>
