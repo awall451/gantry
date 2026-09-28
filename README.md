@@ -1,14 +1,69 @@
 # Gantry
 
-A local reverse proxy and Docker dashboard for your homelab. Gantry watches the Docker socket, gives every container with a published port a stable name like `http://jellyfin.localhost`, and puts routes, containers, logs, a terminal and resource charts in one web UI. Turn on Tailscale access and the same names work from your phone, with a real HTTPS certificate if you want one.
+**Every container on your home machine, reachable from your phone, anywhere.**
 
-![Dashboard](docs/screenshots/dashboard.png)
+Start a container on the laptop at home. On 5G, in a hotel, open `https://jellyfin.lab.example.com`. Real certificate, nothing exposed to the internet, no configuration per service. Gantry watches the Docker socket, gives every container with a published port a name, and puts routes, containers, logs, a terminal and resource charts in one web UI. Turn on Tailscale access and the same names work from every device in your tailnet.
+
+<p align="center">
+  <img src="docs/screenshots/phone-tailnet.png" width="360" alt="Gantry dashboard on a phone over the tailnet: every container has an https link under lab.example.com">
+</p>
+
+## Your homelab, from anywhere
+
+| Where you are | What you open |
+|---|---|
+| At the machine | `http://jellyfin.localhost` |
+| Anywhere else, on your tailnet | `https://jellyfin.lab.example.com` |
+
+Same container, same name, no extra step when you add the next one. The UI itself is `https://lab.example.com`, and its links follow the address you opened it on: `*.localhost` at the desk, `*.lab.example.com` on the phone.
+
+### The trick
+
+Tailscale already connects your devices and MagicDNS already names them. What it lacks is wildcard records, so `jellyfin.<anything>` cannot point at your laptop without a DNS server somewhere. Gantry ships that server, and nothing else:
+
+- **A dependency-free DNS responder** (UDP A records, under 200 lines) answers `*.lab.example.com` with this host's Tailscale IP and refuses everything else. It binds only the Tailscale address.
+- **Tailscale split DNS** sends queries for that one domain to it. One entry in the admin console, once. Every other name keeps using your normal DNS.
+- **Caddy** already listens on every interface, so it just matches every route on the second suffix as well.
+- **HTTPS** is a Let's Encrypt wildcard for `*.lab.example.com`, obtained over Cloudflare DNS-01 and renewed by Caddy in-process. Only your tailnet ever resolves the names; public DNS never learns them.
+
+```
+  phone on 5G                                       laptop at home
+  ───────────                                       ──────────────
+  https://jellyfin.lab.example.com
+        │
+        │  "jellyfin.lab.example.com?"   split DNS   ┌─ Gantry DNS responder  :53 on the Tailscale IP
+        ├──────────────────────────────────────────▶ │  "100.x.y.z — this host"
+        │◀──────────────────────────────────────────┘
+        │
+        │  HTTPS, inside the WireGuard tunnel        ┌─ Caddy :443   wildcard cert
+        └──────────────────────────────────────────▶ │  Host: jellyfin.lab.example.com
+                                                     └───▶ jellyfin container :8096
+```
+
+No tunnel daemon, no port forwarding, no DNS entries to maintain, no labels on containers. Traffic is plain HTTP inside Tailscale's encrypted tunnel, HTTPS on top if you enable it; nothing listens on the public internet. If the host is asleep the names simply do not resolve.
+
+### Compared with the usual options
+
+| | Gantry + Tailscale | `tailscale serve` | Cloudflare Tunnel | Port forwarding |
+|---|---|---|---|---|
+| A new container appears as | a name, automatically | one `serve` per port | an ingress rule per service | a port + DDNS per service |
+| The URL | `https://jellyfin.lab.example.com` | `https://laptop.tailnet.ts.net:8443` | `https://jellyfin.example.com` | `https://home.example.com:8096` |
+| Reachable from the internet | no, tailnet only | no, tailnet only | yes, public | yes, public |
+| HTTPS | wildcard, auto-renewed | automatic | automatic | yours to set up |
+| Extra moving parts | none | none | `cloudflared` | router config |
+| Dashboard, logs, terminal, charts | yes | no | no | no |
+
+### Agentic engineering on the go
+
+Coding agents run on the machine with the Docker socket; you are increasingly not at that machine. With Gantry, whatever the agent starts is a URL a second later. Kick off a Claude Code session on the desktop, walk away, and open `https://timelog.lab.example.com` on your phone from the train to see what it built. The bundled [MCP server](mcp/README.md) lets the agent deploy a compose stack, wait for Gantry to route it, and hand back the link itself.
 
 ## What it does
 
+![Dashboard](docs/screenshots/dashboard.png)
+
 - **Auto-discovers containers.** Start a container with a published port and `<name>.localhost` routes to it within a second. Stop it and the route stays visible as offline; start it again (even with a new container ID) and it comes back.
 - **Manual routes** for anything that is not a container: a hostname and a port.
-- **Reach it from your tailnet.** Enable Tailscale access and every route also answers on `<name>.<your-domain>` for any device in your tailnet. Gantry ships the DNS responder, so there is nothing else to run.
+- **Reach it from your tailnet.** Enable Tailscale access and every route also answers on `<name>.<your-domain>` for any device in your tailnet. Gantry ships the DNS responder, so there is nothing else to run (see [above](#your-homelab-from-anywhere)).
 - **Real HTTPS on the tailnet names.** A Let's Encrypt wildcard via Cloudflare DNS-01, obtained and renewed by Caddy itself.
 - **Docker management.** Start, stop and restart containers; live logs, a terminal, inspect output, per-container CPU / memory / network history; images, volumes, networks and the Docker event stream.
 - **Analytics.** Proxy traffic per route and resource usage across containers, built to stay readable with dozens of them.
@@ -51,7 +106,7 @@ Open **http://gantry.localhost**. Every running container that publishes a port 
 
 The Gantry UI itself is always `gantry.<domain>` and is the first route.
 
-## Access from your phone: Tailscale
+## Setting up tailnet access
 
 Off by default; a stock install never touches Tailscale. Turn it on under **Settings → Tailscale** and every route becomes reachable from any device in your tailnet.
 
@@ -72,16 +127,6 @@ Off by default; a stock install never touches Tailscale. Turn it on under **Sett
 5. **Tailscale admin console → DNS → Nameservers → Add nameserver → Custom.** Nameserver = this host's Tailscale IP. Turn on **Restrict to domain** and enter your domain. Save.
 
 From a phone on the tailnet, open `http://gantry.internal`. The routes list now links to `*.gantry.internal`; on the laptop it keeps linking to `*.localhost`. Links follow the address you opened Gantry on, and both names are shown.
-
-### How it works
-
-Tailscale's MagicDNS names devices but has no wildcard records, so Gantry fills that gap:
-
-- **Caddy** matches every route on the extra suffix. It already listens on all interfaces, so tailnet traffic reaches it on port 80 like any other.
-- **A tiny built-in DNS responder** (dependency-free UDP A records) answers `*.<domain>` with the host's Tailscale IP and refuses everything else.
-- **Tailscale split DNS** sends only queries for that domain to Gantry. All other names keep using your normal DNS.
-
-Traffic is plain HTTP inside Tailscale's encrypted tunnel; nothing is exposed outside the tailnet. If the host is asleep the names simply do not resolve.
 
 ## HTTPS on the tailnet (optional, recommended)
 
