@@ -2,7 +2,7 @@
 
 **Every container on your home machine, reachable from your phone, anywhere.**
 
-Start a container on the laptop at home. On 5G, in a hotel, open `https://jellyfin.lab.example.com`. Real certificate, nothing exposed to the internet, no configuration per service. Gantry watches the Docker socket, gives every container with a published port a name, and puts routes, containers, logs, a terminal and resource charts in one web UI. Turn on Tailscale access and the same names work from every device in your tailnet.
+Start a container on the laptop at home. On 5G, in a hotel, open `https://immich.lab.example.com`. Real certificate, nothing exposed to the internet, no configuration per service. Gantry watches the Docker socket, gives every container with a published port a name, and puts routes, containers, logs, a terminal and resource charts in one web UI. Turn on Tailscale access and the same names work from every device in your tailnet.
 
 <p align="center">
   <img src="docs/screenshots/phone-tailnet.png" width="360" alt="Gantry dashboard on a phone over the tailnet: every container has an https link under lab.example.com">
@@ -12,14 +12,14 @@ Start a container on the laptop at home. On 5G, in a hotel, open `https://jellyf
 
 | Where you are | What you open |
 |---|---|
-| At the machine | `http://jellyfin.localhost` |
-| Anywhere else, on your tailnet | `https://jellyfin.lab.example.com` |
+| At the machine | `http://immich.localhost` |
+| Anywhere else, on your tailnet | `https://immich.lab.example.com` |
 
 Same container, same name, no extra step when you add the next one. The UI itself is `https://lab.example.com`, and its links follow the address you opened it on: `*.localhost` at the desk, `*.lab.example.com` on the phone.
 
 ### The trick
 
-Tailscale already connects your devices and MagicDNS already names them. What it lacks is wildcard records, so `jellyfin.<anything>` cannot point at your laptop without a DNS server somewhere. Gantry ships that server, and nothing else:
+Tailscale already connects your devices and MagicDNS already names them. What it lacks is wildcard records, so `immich.<anything>` cannot point at your laptop without a DNS server somewhere. Gantry ships that server, and nothing else:
 
 - **A dependency-free DNS responder** (UDP A records, under 200 lines) answers `*.lab.example.com` with this host's Tailscale IP and refuses everything else. It binds only the Tailscale address.
 - **Tailscale split DNS** sends queries for that one domain to it. One entry in the admin console, once. Every other name keeps using your normal DNS.
@@ -29,15 +29,15 @@ Tailscale already connects your devices and MagicDNS already names them. What it
 ```
   phone on 5G                                       laptop at home
   ───────────                                       ──────────────
-  https://jellyfin.lab.example.com
+  https://immich.lab.example.com
         │
-        │  "jellyfin.lab.example.com?"   split DNS   ┌─ Gantry DNS responder  :53 on the Tailscale IP
+        │  "immich.lab.example.com?"   split DNS   ┌─ Gantry DNS responder  :53 on the Tailscale IP
         ├──────────────────────────────────────────▶ │  "100.x.y.z — this host"
         │◀──────────────────────────────────────────┘
         │
         │  HTTPS, inside the WireGuard tunnel        ┌─ Caddy :443   wildcard cert
-        └──────────────────────────────────────────▶ │  Host: jellyfin.lab.example.com
-                                                     └───▶ jellyfin container :8096
+        └──────────────────────────────────────────▶ │  Host: immich.lab.example.com
+                                                     └───▶ immich container :8096
 ```
 
 No tunnel daemon, no port forwarding, no DNS entries to maintain, no labels on containers. Traffic is plain HTTP inside Tailscale's encrypted tunnel, HTTPS on top if you enable it; nothing listens on the public internet. If the host is asleep the names simply do not resolve.
@@ -47,7 +47,7 @@ No tunnel daemon, no port forwarding, no DNS entries to maintain, no labels on c
 | | Gantry + Tailscale | `tailscale serve` | Cloudflare Tunnel | Port forwarding |
 |---|---|---|---|---|
 | A new container appears as | a name, automatically | one `serve` per port | an ingress rule per service | a port + DDNS per service |
-| The URL | `https://jellyfin.lab.example.com` | `https://laptop.tailnet.ts.net:8443` | `https://jellyfin.example.com` | `https://home.example.com:8096` |
+| The URL | `https://immich.lab.example.com` | `https://laptop.tailnet.ts.net:8443` | `https://immich.example.com` | `https://home.example.com:8096` |
 | Reachable from the internet | no, tailnet only | no, tailnet only | yes, public | yes, public |
 | HTTPS | wildcard, auto-renewed | automatic | automatic | yours to set up |
 | Extra moving parts | none | none | `cloudflared` | router config |
