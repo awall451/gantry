@@ -149,6 +149,7 @@ Two critical implementation details:
 
 - `lib/ws.js` — WS client. Exports: `connectWs`, `wsSend(data)`, `wsMessage` store, `statsStore` store. Routes `stats:update` messages to `statsStore`, everything else to `wsMessage`.
 - `lib/api.js` — fetch wrapper for all REST endpoints
+- `lib/about.js` — version (from `package.json`), repo, licence and Ko-fi support URLs; rendered by `lib/components/About.svelte` at the bottom of Settings. The only place those links live
 - `lib/settings.js` — settings store + `hostsFor` / `primaryUrl` / `applyServerPayload` / `loadSettings`
 - `lib/chart-tooltip.js` — Chart.js helpers: `registerSideTooltip` (tooltip at plot top, opposite the cursor) and `hideTooltipOnTouchEnd` plugin (touch: tap = click only, drag shows values, lift hides — Chart.js defers events a frame and replays the last one on update, so a naive hide-on-touchend does not work). Use both on every chart
 - `lib/components/ContainerCard.svelte` — expandable horizontal row (click to expand detail panel)

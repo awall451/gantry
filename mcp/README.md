@@ -116,3 +116,7 @@ server.registerPrompt(
 ```
 
 One commit per prompt batch, behind a follow-up PR. No backend or tool changes required.
+
+---
+
+Gantry is free and MIT. If it saves you time, [buy me a coffee](https://ko-fi.com/sigilworks).
