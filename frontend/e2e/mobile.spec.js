@@ -6,6 +6,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const SHOTS = path.join(process.cwd(), 'e2e', 'shots');
+
+// Stack with a login (GANTRY_PASSWORD_HASH set)? Pass E2E_USERNAME and
+// E2E_PASSWORD; each test then logs in through the API, which shares its
+// cookie jar with the page.
+async function logIn(request, baseURL) {
+  if (!process.env.E2E_PASSWORD) return;
+  const res = await request.post(new URL('/api/auth/login', baseURL).toString(), {
+    data: { username: process.env.E2E_USERNAME || 'admin', password: process.env.E2E_PASSWORD },
+  });
+  expect(res.ok(), `login failed: ${res.status()}`).toBeTruthy();
+}
+test.beforeEach(async ({ page, baseURL }) => logIn(page.request, baseURL));
 const MIN_TAP = 40; // px; Apple HIG says 44, Material says 48 — 40 leaves room for borders
 
 async function settle(page) {
@@ -187,6 +199,7 @@ test('analytics: legend chips toggle the highlighted series', async ({ page }, i
 test.describe('container detail', () => {
   let id;
   test.beforeAll(async ({ request, baseURL }) => {
+    await logIn(request, baseURL);
     const res = await request.get(new URL('/api/containers', baseURL).toString());
     const list = await res.json();
     id = (list.find((c) => c.running && c.port) ?? list.find((c) => c.running) ?? list[0])?.id;
