@@ -3,6 +3,7 @@
 // Nothing here starts a server. Point BASE_URL at whatever is running:
 //   npm run dev                          → http://localhost:5173 (default)
 //   docker compose up -d --build         → BASE_URL=http://gantry.localhost
+//   with a login set                     → also E2E_USERNAME=… E2E_PASSWORD=…
 //
 // Screenshots land in e2e/shots/<project>/ (gitignored).
 import { defineConfig, devices } from '@playwright/test';
