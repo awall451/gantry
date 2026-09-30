@@ -113,10 +113,16 @@ if claude mcp list 2>/dev/null | grep -q "^${SERVER_NAME}\b"; then
   claude mcp remove "$SERVER_NAME" -s user >/dev/null 2>&1 || true
 fi
 
+# Login on? Pass the backend's API token through (from the env, else ../.env).
+GANTRY_API_TOKEN="${GANTRY_API_TOKEN:-$(grep -E '^GANTRY_API_TOKEN=' "$(dirname "$INDEX_JS")/../.env" 2>/dev/null | tail -1 | cut -d= -f2- || true)}"
+TOKEN_ENV=()
+[[ -n "$GANTRY_API_TOKEN" ]] && TOKEN_ENV=(--env "GANTRY_API_TOKEN=$GANTRY_API_TOKEN")
+
 claude mcp add "$SERVER_NAME" \
   -s user \
   --env "GANTRY_SERVICES_DIR=$SERVICES_DIR" \
   --env "GANTRY_API=$GANTRY_API" \
+  ${TOKEN_ENV[@]+"${TOKEN_ENV[@]}"} \
   -- node "$INDEX_JS"
 ok "registered"
 echo

@@ -11,11 +11,14 @@ const { docker } = require('./docker-client');
 const { pickShell } = require('./exec-shell');
 const tailscale = require('./tailscale');
 const { PassThrough } = require('stream');
+const { installAuth } = require('./auth/install');
+const authGuard = require('./auth/guard');
 
 const PORT = process.env.PORT || 3001;
 
 const app = express();
 app.use(express.json());
+installAuth(app);
 
 app.use(express.static(path.join(__dirname, '../public')));
 app.use((req, _res, next) => { req.broadcast = broadcast; next(); });
@@ -114,6 +117,12 @@ execWss.on('connection', async (ws, _req, containerId) => {
 
 // Route WebSocket upgrades by path
 server.on('upgrade', (req, socket, head) => {
+  const refused = authGuard.refuseUpgrade(req);
+  if (refused) {
+    const text = { 400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden' }[refused];
+    socket.end(`HTTP/1.1 ${refused} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+    return;
+  }
   const match = req.url.match(/^\/ws\/exec\/([a-zA-Z0-9]+)/);
   if (match) {
     execWss.handleUpgrade(req, socket, head, ws => {
@@ -138,6 +147,10 @@ setBroadcast(broadcast);
 
 server.listen(PORT, () => {
   console.log(`[server] listening on :${PORT}`);
+  const auth = authGuard.config();
+  if (auth.misconfigured) console.error('[auth] GANTRY_PASSWORD_HASH is malformed: login is required but nothing can succeed. Regenerate it with scripts/set-password.sh');
+  else console.log(auth.passwordRequired ? `[auth] login required (user "${auth.username}")` : '[auth] no GANTRY_PASSWORD_HASH set: the UI and API are open to anyone who can reach them');
+  if ((process.env.GANTRY_API_TOKEN || '').trim() && !auth.apiToken) console.error('[auth] GANTRY_API_TOKEN ignored: use at least 32 characters');
   startWatcher();
   startLogTail();
   startStatsRecorder();

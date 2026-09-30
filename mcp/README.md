@@ -32,12 +32,13 @@ Then restart Claude Code.
 
 ## Configure
 
-Two env vars, both optional. The installer reads them at install time and bakes them into the registration:
+Three env vars, all optional. The installer reads them at install time and bakes them into the registration:
 
 | Var | Default | Purpose |
 |-----|---------|---------|
 | `GANTRY_SERVICES_DIR` | `~/services` | Where `deploy_service` clones repos and where `update_service`/`remove_service`/`list_services` look |
 | `GANTRY_API` | `http://localhost:3001` | Gantry backend base URL |
+| `GANTRY_API_TOKEN` | from `../.env` | Needed once Gantry has a login. Same value as the backend's; `scripts/set-password.sh --api-token` creates it. Sent as `Authorization: Bearer …` |
 
 To override, prepend before `./setup.sh`:
 

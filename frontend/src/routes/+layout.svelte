@@ -1,13 +1,39 @@
 <script>
   import { onMount } from 'svelte';
-  import { connectWs, wsMessage } from '$lib/ws';
+  import { connectWs, disconnectWs, wsMessage } from '$lib/ws';
   import { loadSettings, applyServerPayload } from '$lib/settings';
+  import { auth, checkAuth, logout, loginUrl } from '$lib/auth';
+  import { goto } from '$app/navigation';
   import { page } from '$app/stores';
 
-  onMount(() => {
+  // The app (sockets, settings, the chrome) starts only once the backend says
+  // we may use it: immediately on a stock install, after login otherwise.
+  let started = false;
+  function start() {
+    if (started) return;
+    started = true;
     connectWs();
     loadSettings();
+  }
+
+  onMount(async () => {
+    try { await checkAuth(); }
+    // Backend unreachable: behave as before (pages show their own errors).
+    catch { auth.set({ checked: true, required: false, authed: true, misconfigured: false, username: null }); }
   });
+
+  $: onLogin = path === '/login';
+  $: if ($auth.checked && $auth.authed) start();
+  let loggingOut = false; // logout reloads the page itself; skip the SPA redirect
+  $: if ($auth.checked && !$auth.authed && !onLogin && !loggingOut) goto(loginUrl(path + $page.url.search), { replaceState: true });
+
+  async function doLogout() {
+    loggingOut = true;
+    await logout();
+    disconnectWs();
+    started = false;
+    location.assign('/login');
+  }
 
   // Settings saved in another tab (or by the MCP) reach every page live.
   $: if ($wsMessage?.type === 'settings:updated') applyServerPayload({ values: $wsMessage.values });
@@ -61,6 +87,9 @@
 
 <svelte:window on:keydown={onKeydown} />
 
+{#if onLogin}
+<slot />
+{:else if $auth.checked && $auth.authed}
 <div class="app" class:collapsed class:drawer-open={drawerOpen}>
   <header class="topbar">
     <button class="menu-btn" aria-label="Open menu" aria-expanded={drawerOpen}
@@ -97,6 +126,12 @@
           {/each}
         </div>
       {/each}
+      {#if $auth.required}
+        <button class="nav-btn" on:click={doLogout} title={collapsed ? 'Log out' : ''}>
+          <span class="icon">⎋</span>
+          <span class="link-label">Log out{#if $auth.username} ({$auth.username}){/if}</span>
+        </button>
+      {/if}
     </nav>
   </aside>
 
@@ -104,6 +139,7 @@
     <slot />
   </main>
 </div>
+{/if}
 
 <style>
   :global(*, *::before, *::after) { box-sizing: border-box; margin: 0; padding: 0; }
@@ -190,7 +226,14 @@
     transition: color 0.15s, background 0.15s;
     white-space: nowrap;
   }
-  nav a:hover { color: #e2e8f0; background: #1e2235; }
+  nav a:hover, .nav-btn:hover { color: #e2e8f0; background: #1e2235; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 0.65rem; width: 100%;
+    padding: 0.5rem 1rem; background: none; border: none; border-left: 2px solid transparent;
+    font: inherit; font-size: 0.875rem; color: #64748b; cursor: pointer; text-align: left;
+    white-space: nowrap; transition: color 0.15s, background 0.15s;
+  }
+  .collapsed .nav-btn { padding: 0.5rem; justify-content: center; }
   nav a.active { color: #7c84ff; border-left-color: #7c84ff; background: #1e2235; }
 
   .collapsed nav a { padding: 0.5rem; justify-content: center; }
@@ -256,7 +299,8 @@
     .collapsed .group-label { display: block; }
     .collapsed .link-label { display: inline; }
     .collapsed nav a { padding: 0.5rem 1rem; justify-content: flex-start; }
-    nav a { min-height: 44px; font-size: 0.95rem; }
+    nav a, .nav-btn { min-height: 44px; font-size: 0.95rem; }
+    .collapsed .nav-btn { padding: 0.5rem 1rem; justify-content: flex-start; }
 
     main, .collapsed main {
       margin-left: 0;

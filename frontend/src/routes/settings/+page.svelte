@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { settings, applyServerPayload, loadSettings } from '$lib/settings';
+  import { auth } from '$lib/auth';
   import About from '$lib/components/About.svelte';
 
   // Local form state — edited freely, written back in one PUT per section.
@@ -48,6 +49,20 @@
 {:else}
   {#if banner}<p class="ok">{banner}</p>{/if}
   {#if errors._}<p class="error">{errors._}</p>{/if}
+
+  <section class="login-status" class:warn={!$auth.required && $settings.values['tailscale.enabled']}>
+    <header>
+      <h2>Login</h2>
+      {#if $auth.required}
+        <p class="hint">On. Signed in as <b>{$auth.username}</b>. Change the password or add an API token for the MCP server with <code>scripts/set-password.sh</code>, then <code>docker compose up -d</code>. Changing it signs out every device.</p>
+      {:else}
+        <p class="hint">
+          Off: anyone who can reach this page can control Docker on this machine{#if $settings.values['tailscale.enabled']}, and that includes every device on your tailnet{/if}.
+          Turn it on with <code>scripts/set-password.sh</code>, then <code>docker compose up -d</code>.
+        </p>
+      {/if}
+    </header>
+  </section>
 
   <section>
     <header>
@@ -246,6 +261,8 @@
     display: flex; flex-direction: column; gap: 1rem;
   }
   section > header { display: flex; flex-direction: column; gap: 0.25rem; }
+  .login-status.warn { border-color: #92400e; }
+  .login-status.warn .hint { color: #fbbf24; }
 
   .field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; }
   .field.narrow input { width: 120px; }

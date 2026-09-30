@@ -60,6 +60,11 @@ Three components on `network_mode: host` so they can dial each other by port wit
 | `api/images.js` | Docker image list + remove |
 | `api/volumes.js` | Docker volume list + remove |
 | `api/networks.js` | Docker network list (read-only) |
+| `auth/password.js` | scrypt hash/verify (format `scrypt:N:r:p:salt:key`, no `$` so compose never mangles it), 5-per-5-min failed-login throttle, `--stdin` CLI used by `scripts/set-password.sh` |
+| `auth/sessions.js` | Server-side sessions in the `sessions` table: stores SHA-256 of the cookie token plus a fingerprint of the password hash (changing the password kills every session) |
+| `auth/guard.js` | `config()` from env, Host allowlist, Origin check, `isAuthenticated` (cookie or `Bearer $GANTRY_API_TOKEN`), Express guards, `refuseUpgrade` for WebSockets |
+| `auth/install.js` | `installAuth(app)`: mount order shared by `index.js` and the tests |
+| `api/auth.js` | Public `/api/auth`: `config`, `me`, `login` (JSON only), `logout` |
 | `api/settings.js` | `GET`/`PUT /api/settings` — validates the whole patch, saves, then `tailscale.apply()` |
 | `settings.js` | Settings schema: `DEFAULTS` (types drive coercion + validation), `loadSettings`, `validate`, `saveSettings`, `resolveDomains` |
 | `tailscale.js` | Turns saved settings into runtime state: re-push Caddy, start/stop the DNS responder on the effective IP. Runs on boot and after every PUT |
@@ -74,6 +79,16 @@ Three components on `network_mode: host` so they can dial each other by port wit
 4. `gantry.<domain>` always first route, hard-coded to backend port
 5. Every route is matched on `<hostname>.<domain>` for each domain from `settings.resolveDomains()` — just the base domain (`localhost`) by default, plus the Tailscale domain when enabled
 6. With Tailscale on, the bare Tailscale domain (`http://gantry.internal`) also serves the Gantry UI — it's what gets typed on a phone. Bare `localhost` is deliberately left alone so stock output is unchanged
+
+### Login + request guard
+
+Opt-in like Tailscale: with `GANTRY_PASSWORD_HASH` unset nothing asks for a login. Mounted by `installAuth(app)` in this order: Host allowlist → Origin check → public `/api/auth` → `requireAuth` on the rest of `/api`. Static files stay public (the SPA shell must load to show `/login`); `/health` stays public. `server.on('upgrade')` calls `refuseUpgrade(req)` first, so `/ws` and `/ws/exec/:id` get the same three checks.
+
+- **Host allowlist (always on)** blocks DNS rebinding: `gantry.<each domain>`, the bare Tailscale domain, `localhost` and `*.localhost`, any IP literal, plus `GANTRY_ALLOWED_HOSTS`. Anything else gets 400 naming that env var.
+- **Origin check (always on)** for POST/PUT/PATCH/DELETE and WS: if `Origin` is present its host must equal `Host`. Catches cross-site forms and container apps on sibling subdomains (`jellyfin.lab…` → `lab…` is same-site, so SameSite alone would not).
+- **Login**: `POST /api/auth/login` (JSON only → no cross-site form can even try), scrypt verify always runs, username compared in constant time, sets `gantry_session` (HttpOnly, SameSite=Strict, Secure when `req.secure`; `trust proxy` = loopback so Caddy's `X-Forwarded-Proto` counts). `GANTRY_API_TOKEN` (≥32 chars) is the MCP's Bearer token; `mcp/setup.sh` bakes it into the registration from `.env`.
+- A malformed hash **fails closed** (login required, nothing verifies) and `/api/auth/config` says `misconfigured: true`; the login page tells you to regenerate.
+- Frontend: `lib/auth.js` store; `+layout.svelte` runs `checkAuth()` and only then starts WS + settings, renders `/login` bare, redirects other pages there with `return_to` (sanitised by `safeReturnTo`). `lib/api.js` sends any 401 to `/login`. Log out is a sidebar button shown only when a login exists.
 
 ### Settings + Tailscale access
 
@@ -131,6 +146,8 @@ Two critical implementation details:
 
 **`analytics`**: `hostname, hour (PK), request_count, status_2xx, status_4xx, status_5xx, avg_duration_ms`
 
+**`sessions`**: `token_hash (PK, SHA-256 of the cookie), pw_fp, issued_at, expires_at, revoked_at`
+
 ### Frontend pages
 
 | Route | Purpose |
@@ -143,12 +160,14 @@ Two critical implementation details:
 | `/images` | Image list + remove |
 | `/volumes` | Volume list + remove |
 | `/networks` | Network list (read-only) |
+| `/login` | Username + password form; rendered without the sidebar. Only reachable when a login is configured |
 | `/settings` | General (base domain) + Tailscale (enable, domain, IP, DNS responder, status, admin-console steps) |
 
 ### Frontend lib
 
 - `lib/ws.js` — WS client. Exports: `connectWs`, `wsSend(data)`, `wsMessage` store, `statsStore` store. Routes `stats:update` messages to `statsStore`, everything else to `wsMessage`.
 - `lib/api.js` — fetch wrapper for all REST endpoints
+- `lib/auth.js` — login store: `checkAuth`, `login`, `logout`, `safeReturnTo`, `loginUrl`
 - `lib/about.js` — version (from `package.json`), repo, licence and Ko-fi support URLs; rendered by `lib/components/About.svelte` at the bottom of Settings. The only place those links live
 - `lib/settings.js` — settings store + `hostsFor` / `primaryUrl` / `applyServerPayload` / `loadSettings`
 - `lib/chart-tooltip.js` — Chart.js helpers: `registerSideTooltip` (tooltip at plot top, opposite the cursor) and `hideTooltipOnTouchEnd` plugin (touch: tap = click only, drag shows values, lift hides — Chart.js defers events a frame and replays the last one on update, so a naive hide-on-touchend does not work). Use both on every chart
