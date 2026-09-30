@@ -57,6 +57,18 @@ function getDb() {
       );
       CREATE INDEX IF NOT EXISTS idx_cevents ON container_events (container_id, occurred_at);
 
+      -- Login sessions. Only a SHA-256 of the cookie token is stored, so a
+      -- copy of the DB does not hand out live sessions. pw_fp ties a session
+      -- to the password it was opened with: changing the password logs out
+      -- every device.
+      CREATE TABLE IF NOT EXISTS sessions (
+        token_hash TEXT PRIMARY KEY,
+        pw_fp      TEXT NOT NULL,   -- fingerprint of the password hash at login
+        issued_at  TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        revoked_at TEXT
+      );
+
       CREATE TABLE IF NOT EXISTS settings (
         key   TEXT PRIMARY KEY,
         value TEXT NOT NULL

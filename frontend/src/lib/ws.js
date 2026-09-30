@@ -18,8 +18,11 @@ export function wsSend(data) {
   }
 }
 
+let stopped = false;
+
 export function connectWs() {
   clearTimeout(reconnectTimer);
+  stopped = false;
   socket = new WebSocket(getWsUrl());
 
   socket.addEventListener('message', e => {
@@ -36,8 +39,15 @@ export function connectWs() {
   });
 
   socket.addEventListener('close', () => {
-    reconnectTimer = setTimeout(connectWs, 3000);
+    if (!stopped) reconnectTimer = setTimeout(connectWs, 3000);
   });
 
   socket.addEventListener('error', () => socket.close());
+}
+
+// Logout: close for good (no reconnect loop against a socket that now 401s).
+export function disconnectWs() {
+  stopped = true;
+  clearTimeout(reconnectTimer);
+  socket?.close();
 }

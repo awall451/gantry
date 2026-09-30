@@ -28,6 +28,15 @@ services:
       - LOG_PATH=/logs/access.log
       # Same token, only so the Settings page can say whether it is set.
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
+      # Login (optional). Unset GANTRY_PASSWORD_HASH = no login, as before.
+      # Set it with scripts/set-password.sh; see README → Login.
+      - GANTRY_USERNAME=${GANTRY_USERNAME:-admin}
+      - GANTRY_PASSWORD_HASH=${GANTRY_PASSWORD_HASH:-}
+      - GANTRY_SESSION_TTL_HOURS=${GANTRY_SESSION_TTL_HOURS:-168}
+      # Bearer token for non-browser clients (the MCP server), 32+ chars.
+      - GANTRY_API_TOKEN=${GANTRY_API_TOKEN:-}
+      # Extra hostnames the UI may be opened on (comma list, *.suffix ok).
+      - GANTRY_ALLOWED_HOSTS=${GANTRY_ALLOWED_HOSTS:-}
     restart: unless-stopped
     depends_on:
       - caddy

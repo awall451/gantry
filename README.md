@@ -149,6 +149,26 @@ Notes:
 - The http→https redirect applies to the Tailscale domain only. `*.localhost` is always plain http; browsers already treat it as a secure context.
 - TLDs such as `.dev` and `.app` are HTTPS-only in browsers (HSTS preload), so there is no plain-http fallback on them. If issuance ever breaks, switching the domain back to something like `gantry.internal` restores plain http immediately.
 
+## Login
+
+Off by default, like everything else here. Turn it on before you enable tailnet access: without it, anyone who can reach Gantry can start, stop and exec into your containers.
+
+```bash
+scripts/set-password.sh        # prompts for a username and password, writes .env
+docker compose up -d
+```
+
+The password is hashed with scrypt; only the hash lands in `.env`, never the password. After that:
+
+- Every page asks for the login once per browser. Sessions last 7 days (`GANTRY_SESSION_TTL_HOURS`) and are stored server-side, so **Log out** in the sidebar really ends them.
+- Changing the password (run the script again) signs out every device.
+- Five wrong passwords lock the login for five minutes.
+- The cookie is `HttpOnly` and `SameSite=Strict`, and `Secure` when you are on the HTTPS tailnet name.
+- The MCP server needs a token once login is on: `scripts/set-password.sh --api-token`, then rerun `mcp/setup.sh`.
+- `scripts/set-password.sh --disable` removes the login again.
+
+Two protections are on for everyone, login or not. Gantry answers only on its own names (`gantry.<domain>`, the tailnet domain, `*.localhost`, IP addresses), which blocks DNS-rebinding attacks from web pages. And it refuses state-changing requests that come from another site, including a container app on a sibling subdomain. If you open Gantry on some other name, add it to `GANTRY_ALLOWED_HOSTS`.
+
 ## Configuration reference
 
 All settings live in the UI (**Settings**) and persist in SQLite. Defaults:
@@ -174,6 +194,11 @@ Environment (set in `docker-compose.yml`):
 | `DB_PATH` | `/app/data/proxy.db` | SQLite file (mounted from `./data`) |
 | `LOG_PATH` | `/logs/access.log` | Caddy access log, tailed for analytics |
 | `CLOUDFLARE_API_TOKEN` | empty | From `.env`; only needed for HTTPS |
+| `GANTRY_USERNAME` | `admin` | Login username |
+| `GANTRY_PASSWORD_HASH` | empty | scrypt hash from `scripts/set-password.sh`; empty = no login |
+| `GANTRY_SESSION_TTL_HOURS` | `168` | How long a login lasts |
+| `GANTRY_API_TOKEN` | empty | Bearer token for the MCP server once login is on (32+ characters) |
+| `GANTRY_ALLOWED_HOSTS` | empty | Extra names Gantry may be opened on, comma-separated, `*.suffix` allowed, `*` disables the check |
 
 Ports used on the host: `80` (and `443` with HTTPS) for Caddy, `2019` Caddy admin, `3001` backend, `53/udp` on the Tailscale IP when the responder is on.
 
@@ -259,7 +284,7 @@ All three services run with `network_mode: host`.
 
 ## Security notes
 
-Gantry has **no authentication**. It controls your Docker daemon (start/stop, exec into containers, delete images and volumes). Keep it on `localhost` and your tailnet only; never publish port 80/443/3001 to the internet. The Cloudflare token is read by Caddy from `.env` and is never written to the database or shown in the UI.
+Gantry controls your Docker daemon (start/stop, exec into containers, delete images and volumes), which is root-equivalent on the host. Login is optional and off by default: **turn it on** (see [Login](#login)) before opening Gantry to your tailnet. Even with a login, keep it on `localhost` and your tailnet only; never publish port 80/443/3001 to the internet. The Cloudflare token is read by Caddy from `.env` and is never written to the database or shown in the UI.
 
 ## Support
 

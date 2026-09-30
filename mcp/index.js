@@ -9,6 +9,9 @@ import { resolve, join } from "path";
 import os from "os";
 
 const GANTRY_API = process.env.GANTRY_API || "http://localhost:3001";
+// Needed once Gantry has a login (GANTRY_PASSWORD_HASH): same value as the
+// backend's GANTRY_API_TOKEN. Sent as a Bearer token; unset = no header.
+const GANTRY_API_TOKEN = process.env.GANTRY_API_TOKEN || "";
 const SERVICES_DIR = process.env.GANTRY_SERVICES_DIR || join(os.homedir(), "services");
 mkdirSync(SERVICES_DIR, { recursive: true });
 
@@ -19,8 +22,12 @@ const DIR_NAME_RE = /^[A-Za-z0-9._-]+$/;
 async function gantryFetch(path, options = {}) {
   const url = `${GANTRY_API}${path}`;
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(GANTRY_API_TOKEN ? { Authorization: `Bearer ${GANTRY_API_TOKEN}` } : {}),
+      ...options.headers,
+    },
   });
   const text = await res.text();
   try {

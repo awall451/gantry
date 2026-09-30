@@ -1,4 +1,11 @@
+import { loginUrl } from './auth';
+
 async function json(res) {
+  // Session expired or revoked (login configured): back to the login page,
+  // returning here afterwards.
+  if (res.status === 401 && typeof location !== 'undefined' && location.pathname !== '/login') {
+    location.assign(loginUrl(location.pathname + location.search));
+  }
   if (!res.ok) throw new Error(await res.text());
   if (res.status === 204) return null;
   return res.json();
