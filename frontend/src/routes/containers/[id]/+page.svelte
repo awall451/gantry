@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { api } from '$lib/api';
   import { wsSend, statsStore } from '$lib/ws';
+  import { openTerminal as openTerminalIn } from '$lib/terminal';
   import {
     Chart, LineController, LineElement, PointElement, LinearScale,
     CategoryScale, Filler, Tooltip
@@ -47,8 +48,7 @@
 
   // Terminal
   let termEl;
-  let term, fitAddon, termWs, termRo;
-  let Terminal, FitAddon;
+  let termSession = null;
 
   // Env var visibility
   let showEnvValues = false;
@@ -132,54 +132,17 @@
 
   async function openTerminal() {
     if (!termEl) return;
-    if (!Terminal) {
-      try {
-        const xtermMod = await import('xterm');
-        const fitMod = await import('@xterm/addon-fit');
-        Terminal = xtermMod.Terminal;
-        FitAddon = fitMod.FitAddon;
-        await import('xterm/css/xterm.css');
-      } catch {
-        termEl.textContent = 'xterm not installed. Run: npm install xterm @xterm/addon-fit in frontend/';
-        return;
-      }
+    closeTerminal();
+    try {
+      termSession = await openTerminalIn(termEl, `/ws/exec/${id}`);
+    } catch {
+      termEl.textContent = 'xterm not installed. Run: npm install xterm @xterm/addon-fit in frontend/';
     }
-    term?.dispose();
-    termWs?.close();
-
-    term = new Terminal({ cursorBlink: true, theme: { background: '#0f1117', foreground: '#e2e8f0' } });
-    fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(termEl);
-    fitAddon.fit();
-
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    termWs = new WebSocket(`${proto}://${location.host}/ws/exec/${id}`);
-    termWs.binaryType = 'arraybuffer';
-
-    termWs.onopen = () => {
-      termWs.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-    };
-    termWs.onmessage = e => term.write(new Uint8Array(e.data));
-    termWs.onclose = () => term.write('\r\n[disconnected]\r\n');
-
-    term.onData(data => { if (termWs.readyState === 1) termWs.send(data); });
-    term.onResize(({ cols, rows }) => {
-      if (termWs.readyState === 1) termWs.send(JSON.stringify({ type: 'resize', cols, rows }));
-    });
-
-    termRo?.disconnect();
-    termRo = new ResizeObserver(() => fitAddon?.fit());
-    termRo.observe(termEl);
   }
 
   function closeTerminal() {
-    termRo?.disconnect();
-    termRo = null;
-    termWs?.close();
-    term?.dispose();
-    term = null;
-    termWs = null;
+    termSession?.close();
+    termSession = null;
   }
 
   function fmtBytes(b) {

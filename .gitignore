@@ -23,3 +23,7 @@ frontend/coverage/
 frontend/e2e/shots/
 frontend/test-results/
 frontend/playwright-report/
+
+# Host terminal SSH key + pinned host key (scripts/enable-host-shell.sh)
+host-shell/*
+!host-shell/.gitkeep
