@@ -13,6 +13,8 @@ const tailscale = require('./tailscale');
 const { PassThrough } = require('stream');
 const { installAuth } = require('./auth/install');
 const authGuard = require('./auth/guard');
+const hostShell = require('./host-shell');
+const { refuseHostUpgrade } = require('./api/host-shell');
 
 const PORT = process.env.PORT || 3001;
 
@@ -31,6 +33,7 @@ app.use('/api/volumes',          require('./api/volumes'));
 app.use('/api/networks',         require('./api/networks'));
 app.use('/api/docker-analytics', require('./api/docker-analytics'));
 app.use('/api/settings',         require('./api/settings'));
+app.use('/api/host-shell',       require('./api/host-shell'));
 
 app.get('/health', async (_req, res) => {
   res.json({
@@ -52,6 +55,9 @@ const wss = new WebSocket.Server({ noServer: true });
 
 // Exec terminal WebSocket
 const execWss = new WebSocket.Server({ noServer: true });
+
+// Host terminal WebSocket (SSH to this machine; see host-shell.js)
+const hostWss = new WebSocket.Server({ noServer: true });
 
 function broadcast(data) {
   const msg = JSON.stringify(data);
@@ -98,14 +104,15 @@ execWss.on('connection', async (ws, _req, containerId) => {
 
     ws.on('message', data => {
       const str = data.toString();
-      if (str.startsWith('{')) {
+      // Only {"type":"resize",...} is control; anything else, including a
+      // typed "{" (previously swallowed here), is terminal input.
+      if (str.startsWith('{"type"')) {
         try {
           const msg = JSON.parse(str);
-          if (msg.type === 'resize') exec.resize({ h: msg.rows, w: msg.cols }).catch(() => {});
+          if (msg.type === 'resize') { exec.resize({ h: msg.rows, w: msg.cols }).catch(() => {}); return; }
         } catch {}
-      } else {
-        stream.write(data);
       }
+      stream.write(data);
     });
 
     ws.on('close', () => stream.destroy());
@@ -123,6 +130,16 @@ server.on('upgrade', (req, socket, head) => {
     socket.end(`HTTP/1.1 ${refused} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
     return;
   }
+  if (/^\/ws\/host(\?|$)/.test(req.url)) {
+    const no = refuseHostUpgrade(req);
+    if (no) {
+      console.warn(`[host-shell] refused upgrade (${no}) from ${req.socket.remoteAddress}`);
+      socket.end(`HTTP/1.1 ${no} ${no === 404 ? 'Not Found' : 'Forbidden'}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+      return;
+    }
+    hostWss.handleUpgrade(req, socket, head, ws => hostWss.emit('connection', ws, req));
+    return;
+  }
   const match = req.url.match(/^\/ws\/exec\/([a-zA-Z0-9]+)/);
   if (match) {
     execWss.handleUpgrade(req, socket, head, ws => {
@@ -133,6 +150,53 @@ server.on('upgrade', (req, socket, head) => {
       wss.emit('connection', ws, req);
     });
   }
+});
+
+hostWss.on('connection', async (ws, req) => {
+  const cfg = hostShell.hostShellConfig();
+  const q = new URL(req.url, 'http://x').searchParams;
+  const size = { cols: Math.min(500, Number(q.get('cols')) || 80), rows: Math.min(200, Number(q.get('rows')) || 24) };
+  const who = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const started = Date.now();
+  let conn, stream, idle;
+  const close = (why) => {
+    clearTimeout(idle);
+    if (ws.readyState === WebSocket.OPEN) { if (why) ws.send(`\r\n[${why}]\r\n`); ws.close(); }
+    stream?.end(); conn?.end();
+  };
+  const touch = () => { clearTimeout(idle); idle = setTimeout(() => { const m = cfg.idleMs / 60000; close(`closed after ${m} minute${m === 1 ? '' : 's'} without input`); }, cfg.idleMs); };
+
+  try {
+    ({ conn, stream } = await hostShell.openShell(cfg, size));
+  } catch (err) {
+    console.error(`[host-shell] ssh ${cfg.user}@${cfg.host}:${cfg.port} failed: ${err.message}`);
+    return close(`could not open a shell: ${err.message}`);
+  }
+  console.log(`[host-shell] opened ${cfg.user}@${cfg.host} for ${who}`);
+  touch();
+
+  stream.on('data', d => { if (ws.readyState === WebSocket.OPEN) ws.send(d); });
+  stream.stderr?.on('data', d => { if (ws.readyState === WebSocket.OPEN) ws.send(d); });
+  stream.on('close', () => close('shell exited'));
+  conn.on('close', () => close());
+
+  ws.on('message', data => {
+    touch();
+    const str = data.toString();
+    // Control frames are {"type":"resize",...}; anything else, including a
+    // typed "{", is terminal input.
+    if (str.startsWith('{"type"')) {
+      try {
+        const msg = JSON.parse(str);
+        if (msg.type === 'resize') { stream.setWindow(Math.min(200, msg.rows | 0) || 24, Math.min(500, msg.cols | 0) || 80, 0, 0); return; }
+      } catch {}
+    }
+    stream.write(data);
+  });
+  ws.on('close', () => {
+    close();
+    console.log(`[host-shell] closed for ${who} after ${Math.round((Date.now() - started) / 1000)}s`);
+  });
 });
 
 setInterval(() => {
@@ -151,6 +215,8 @@ server.listen(PORT, () => {
   if (auth.misconfigured) console.error('[auth] GANTRY_PASSWORD_HASH is malformed: login is required but nothing can succeed. Regenerate it with scripts/set-password.sh');
   else console.log(auth.passwordRequired ? `[auth] login required (user "${auth.username}")` : '[auth] no GANTRY_PASSWORD_HASH set: the UI and API are open to anyone who can reach them');
   if ((process.env.GANTRY_API_TOKEN || '').trim() && !auth.apiToken) console.error('[auth] GANTRY_API_TOKEN ignored: use at least 32 characters');
+  const hs = hostShell.availability(hostShell.hostShellConfig(), auth);
+  if (hs.enabled) console.log(hs.available ? `[host-shell] enabled for ${hs.user}` : `[host-shell] enabled but unavailable: ${hs.reason}`);
   startWatcher();
   startLogTail();
   startStatsRecorder();

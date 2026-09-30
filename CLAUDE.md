@@ -65,6 +65,8 @@ Three components on `network_mode: host` so they can dial each other by port wit
 | `auth/guard.js` | `config()` from env, Host allowlist, Origin check, `isAuthenticated` (cookie or `Bearer $GANTRY_API_TOKEN`), Express guards, `refuseUpgrade` for WebSockets |
 | `auth/install.js` | `installAuth(app)`: mount order shared by `index.js` and the tests |
 | `api/auth.js` | Public `/api/auth`: `config`, `me`, `login` (JSON only), `logout` |
+| `host-shell.js` | Host terminal: `hostShellConfig`, `availability` (fix-it reason when not usable), pinned `known_hosts` parsing, single-use 60 s tickets bound to the session cookie, `openShell` (ssh2 → 127.0.0.1:22 as `GANTRY_HOST_SHELL_USER`, host key must match) |
+| `api/host-shell.js` | `GET /status`, `POST /unlock` (password again → ticket; cookie session only, shares the login throttle), `refuseHostUpgrade` for `/ws/host` |
 | `api/settings.js` | `GET`/`PUT /api/settings` — validates the whole patch, saves, then `tailscale.apply()` |
 | `settings.js` | Settings schema: `DEFAULTS` (types drive coercion + validation), `loadSettings`, `validate`, `saveSettings`, `resolveDomains` |
 | `tailscale.js` | Turns saved settings into runtime state: re-push Caddy, start/stop the DNS responder on the effective IP. Runs on boot and after every PUT |
@@ -119,7 +121,8 @@ Frontend: `lib/settings.js` store is loaded once in `+layout.svelte` and refresh
 Two separate WS servers, both `noServer: true`, routed by path in `server.on('upgrade')`:
 
 - **`/ws`** — broadcast WS (`wss`). Server→client: `routes:updated`, `container:started/stopped/restarted`, `stats:update`. Client→server: `stats:subscribe / stats:unsubscribe` (handled by `stats-manager.js`).
-- **`/ws/exec/:id`** — exec terminal relay (`execWss`). Pipes browser↔`container.exec()`. JSON messages starting with `{` are control frames (`{ type: 'resize', cols, rows }`); everything else is raw terminal input.
+- **`/ws/host?ticket=…&cols=&rows=`** — host terminal relay (`hostWss`). After the normal upgrade guard, `refuseHostUpgrade` needs the feature available and a ticket from `/api/host-shell/unlock` for this session. Relays to an ssh2 shell; idle timeout; logs open/close with the client address.
+- **`/ws/exec/:id`** — exec terminal relay (`execWss`). Pipes browser↔`container.exec()`. Only `{"type":"resize",cols,rows}` is a control frame (both terminal relays); anything else, including a typed `{`, is raw terminal input. `lib/terminal.js` is the shared xterm ↔ WS client.
 
 ### Stats monitoring
 
@@ -161,12 +164,14 @@ Two critical implementation details:
 | `/volumes` | Volume list + remove |
 | `/networks` | Network list (read-only) |
 | `/login` | Username + password form; rendered without the sidebar. Only reachable when a login is configured |
+| `/host` | Host terminal (only linked when `GANTRY_HOST_SHELL` is on): password again → xterm over `/ws/host` |
 | `/settings` | General (base domain) + Tailscale (enable, domain, IP, DNS responder, status, admin-console steps) |
 
 ### Frontend lib
 
 - `lib/ws.js` — WS client. Exports: `connectWs`, `wsSend(data)`, `wsMessage` store, `statsStore` store. Routes `stats:update` messages to `statsStore`, everything else to `wsMessage`.
 - `lib/api.js` — fetch wrapper for all REST endpoints
+- `lib/terminal.js` — `openTerminal(el, path)`: xterm + fit addon + resize protocol over a WS; used by the container Terminal tab and `/host`
 - `lib/auth.js` — login store: `checkAuth`, `login`, `logout`, `safeReturnTo`, `loginUrl`
 - `lib/about.js` — version (from `package.json`), repo, licence and Ko-fi support URLs; rendered by `lib/components/About.svelte` at the bottom of Settings. The only place those links live
 - `lib/settings.js` — settings store + `hostsFor` / `primaryUrl` / `applyServerPayload` / `loadSettings`

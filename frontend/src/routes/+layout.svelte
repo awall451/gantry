@@ -9,11 +9,13 @@
   // The app (sockets, settings, the chrome) starts only once the backend says
   // we may use it: immediately on a stock install, after login otherwise.
   let started = false;
+  let hostShellOn = false; // nav link only when the feature is switched on
   function start() {
     if (started) return;
     started = true;
     connectWs();
     loadSettings();
+    fetch('/api/host-shell/status').then(r => (r.ok ? r.json() : {})).then(s => { hostShellOn = !!s.enabled; }).catch(() => {});
   }
 
   onMount(async () => {
@@ -73,6 +75,7 @@
       label: 'System',
       links: [
         { href: '/settings', label: 'Settings', icon: '⚙', exact: true },
+        { href: '/host',     label: 'Host terminal', icon: '›_', exact: true, hostShell: true },
       ],
     },
   ];
@@ -114,7 +117,7 @@
       {#each NAV as group}
         <div class="nav-group">
           <span class="group-label">{group.label}</span>
-          {#each group.links as link}
+          {#each group.links.filter(l => !l.hostShell || hostShellOn) as link}
             <a
               href={link.href}
               class:active={isActive(link, path)}

@@ -21,6 +21,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./data:/app/data
       - ./logs:/logs
+      # Host terminal key + pinned host key (scripts/enable-host-shell.sh).
+      - ./host-shell:/app/host-shell:ro
     environment:
       - PORT=3001
       - CADDY_ADMIN=http://localhost:2019
@@ -37,6 +39,11 @@ services:
       - GANTRY_API_TOKEN=${GANTRY_API_TOKEN:-}
       # Extra hostnames the UI may be opened on (comma list, *.suffix ok).
       - GANTRY_ALLOWED_HOSTS=${GANTRY_ALLOWED_HOSTS:-}
+      # Host terminal (optional, needs a login): SSH to this machine's sshd.
+      - GANTRY_HOST_SHELL=${GANTRY_HOST_SHELL:-0}
+      - GANTRY_HOST_SHELL_USER=${GANTRY_HOST_SHELL_USER:-}
+      - GANTRY_HOST_SHELL_PORT=${GANTRY_HOST_SHELL_PORT:-22}
+      - GANTRY_HOST_SHELL_IDLE_MINUTES=${GANTRY_HOST_SHELL_IDLE_MINUTES:-30}
     restart: unless-stopped
     depends_on:
       - caddy

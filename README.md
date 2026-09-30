@@ -169,6 +169,28 @@ The password is hashed with scrypt; only the hash lands in `.env`, never the pas
 
 Two protections are on for everyone, login or not. Gantry answers only on its own names (`gantry.<domain>`, the tailnet domain, `*.localhost`, IP addresses), which blocks DNS-rebinding attacks from web pages. And it refuses state-changing requests that come from another site, including a container app on a sibling subdomain. If you open Gantry on some other name, add it to `GANTRY_ALLOWED_HOSTS`.
 
+## Host terminal (optional)
+
+A shell on the machine running Gantry, in the browser, from anywhere on your tailnet. It is off by default and **only works with a login set**.
+
+```bash
+scripts/set-password.sh          # if you have not already
+scripts/enable-host-shell.sh     # run as the user the shell should belong to
+docker compose up -d
+```
+
+**Host terminal** then appears under System. Opening it asks for your password again, even when you are logged in.
+
+How it is fenced in:
+
+- It is SSH to this machine's own sshd, as your user, not root. `sudo` works as usual, and sshd logs every session.
+- The script generates a dedicated key and never touches your own keys. In `authorized_keys` it is restricted to `from="127.0.0.1,::1"` with forwarding off, so a copy of it is useless on any other machine.
+- The host's SSH key is pinned at setup. If it ever changes, Gantry refuses to connect.
+- Re-typing the password buys a single-use ticket that expires after 60 seconds. It is bound to your browser session, and the MCP server's API token cannot get one.
+- Sessions close after 30 minutes without input (`GANTRY_HOST_SHELL_IDLE_MINUTES`). Opens, closes and wrong passwords are logged by the backend.
+
+sshd must allow public-key login for your user. Password login can stay off. `scripts/enable-host-shell.sh --disable` removes the key and switches the feature off.
+
 ## Configuration reference
 
 All settings live in the UI (**Settings**) and persist in SQLite. Defaults:
@@ -198,6 +220,10 @@ Environment (set in `docker-compose.yml`):
 | `GANTRY_PASSWORD_HASH` | empty | scrypt hash from `scripts/set-password.sh`; empty = no login |
 | `GANTRY_SESSION_TTL_HOURS` | `168` | How long a login lasts |
 | `GANTRY_API_TOKEN` | empty | Bearer token for the MCP server once login is on (32+ characters) |
+| `GANTRY_HOST_SHELL` | `0` | `1` enables the host terminal (needs a login and `scripts/enable-host-shell.sh`) |
+| `GANTRY_HOST_SHELL_USER` | empty | User the host shell logs in as; set by the script |
+| `GANTRY_HOST_SHELL_PORT` | `22` | This machine's sshd port |
+| `GANTRY_HOST_SHELL_IDLE_MINUTES` | `30` | Close a host shell after this long without input |
 | `GANTRY_ALLOWED_HOSTS` | empty | Extra names Gantry may be opened on, comma-separated, `*.suffix` allowed, `*` disables the check |
 
 Ports used on the host: `80` (and `443` with HTTPS) for Caddy, `2019` Caddy admin, `3001` backend, `53/udp` on the Tailscale IP when the responder is on.
