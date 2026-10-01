@@ -44,6 +44,9 @@ services:
       - GANTRY_HOST_SHELL_USER=${GANTRY_HOST_SHELL_USER:-}
       - GANTRY_HOST_SHELL_PORT=${GANTRY_HOST_SHELL_PORT:-22}
       - GANTRY_HOST_SHELL_IDLE_MINUTES=${GANTRY_HOST_SHELL_IDLE_MINUTES:-30}
+      # Authenticator (TOTP) secret: unlocking the host terminal then also
+      # needs a 6-digit code. Set by scripts/set-password.sh.
+      - GANTRY_TOTP_SECRET=${GANTRY_TOTP_SECRET:-}
     restart: unless-stopped
     depends_on:
       - caddy

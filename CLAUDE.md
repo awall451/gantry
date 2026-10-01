@@ -61,12 +61,13 @@ Three components on `network_mode: host` so they can dial each other by port wit
 | `api/volumes.js` | Docker volume list + remove |
 | `api/networks.js` | Docker network list (read-only) |
 | `auth/password.js` | scrypt hash/verify (format `scrypt:N:r:p:salt:key`, no `$` so compose never mangles it), 5-per-5-min failed-login throttle, `--stdin` CLI used by `scripts/set-password.sh` |
+| `auth/totp.js` | RFC 6238 TOTP on built-in crypto (base32, ±1 step, `verifier()` refuses replays of the last accepted step); CLI `new`/`uri`/`verify`/`qr` used by `scripts/set-password.sh` |
 | `auth/sessions.js` | Server-side sessions in the `sessions` table: stores SHA-256 of the cookie token plus a fingerprint of the password hash (changing the password kills every session) |
 | `auth/guard.js` | `config()` from env, Host allowlist, Origin check, `isAuthenticated` (cookie or `Bearer $GANTRY_API_TOKEN`), Express guards, `refuseUpgrade` for WebSockets |
 | `auth/install.js` | `installAuth(app)`: mount order shared by `index.js` and the tests |
 | `api/auth.js` | Public `/api/auth`: `config`, `me`, `login` (JSON only), `logout` |
 | `host-shell.js` | Host terminal: `hostShellConfig`, `availability` (fix-it reason when not usable), pinned `known_hosts` parsing, single-use 60 s tickets bound to the session cookie, `openShell` (ssh2 → 127.0.0.1:22 as `GANTRY_HOST_SHELL_USER`, host key must match) |
-| `api/host-shell.js` | `GET /status`, `POST /unlock` (password again → ticket; cookie session only, shares the login throttle), `refuseHostUpgrade` for `/ws/host` |
+| `api/host-shell.js` | `GET /status` (`totp_required`), `POST /unlock` (password again, plus a TOTP code when `GANTRY_TOTP_SECRET` is set; the code is only checked with the right password so wrong guesses can't burn it → ticket; cookie session only, shares the login throttle), `refuseHostUpgrade` for `/ws/host` |
 | `api/settings.js` | `GET`/`PUT /api/settings` — validates the whole patch, saves, then `tailscale.apply()` |
 | `settings.js` | Settings schema: `DEFAULTS` (types drive coercion + validation), `loadSettings`, `validate`, `saveSettings`, `resolveDomains` |
 | `tailscale.js` | Turns saved settings into runtime state: re-push Caddy, start/stop the DNS responder on the effective IP. Runs on boot and after every PUT |
@@ -164,7 +165,7 @@ Two critical implementation details:
 | `/volumes` | Volume list + remove |
 | `/networks` | Network list (read-only) |
 | `/login` | Username + password form; rendered without the sidebar. Only reachable when a login is configured |
-| `/host` | Host terminal (only linked when `GANTRY_HOST_SHELL` is on): password again → xterm over `/ws/host` |
+| `/host` | Host terminal (only linked when `GANTRY_HOST_SHELL` is on): password again (+ authenticator code when configured) → xterm over `/ws/host` |
 | `/settings` | General (base domain) + Tailscale (enable, domain, IP, DNS responder, status, admin-console steps) |
 
 ### Frontend lib

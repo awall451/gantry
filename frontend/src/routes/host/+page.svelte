@@ -4,6 +4,7 @@
 
   let status = null;      // GET /api/host-shell/status
   let password = '';
+  let code = '';          // authenticator code, when status.totp_required
   let error = '';
   let busy = false;
   let connected = false;
@@ -23,13 +24,16 @@
     if (busy) return;
     busy = true; error = '';
     const res = await fetch('/api/host-shell/unlock', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(status.totp_required ? { password, code } : { password }),
     });
-    password = '';
+    password = ''; code = '';
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       busy = false;
-      error = res.status === 401 ? 'Wrong password.' : (body.detail || 'Could not open the terminal.');
+      error = res.status === 401
+        ? (status.totp_required ? 'Wrong password or code.' : 'Wrong password.')
+        : (body.detail || 'Could not open the terminal.');
       return;
     }
     connected = true;
@@ -74,9 +78,14 @@
 {:else}
   {#if !connected}
     <form class="unlock" on:submit|preventDefault={unlock}>
-      <p>Opens a shell as <b>{status.user}</b> on this machine. Confirm your Gantry password to continue.</p>
+      <p>Opens a shell as <b>{status.user}</b> on this machine. Confirm your Gantry password{status.totp_required ? ' and the code from your authenticator app' : ''} to continue.</p>
       <label for="hpw">Password</label>
       <input id="hpw" type="password" bind:this={pwInput} bind:value={password} autocomplete="current-password" required />
+      {#if status.totp_required}
+        <label for="hcode">Authenticator code</label>
+        <input id="hcode" class="code" bind:value={code} inputmode="numeric" autocomplete="one-time-code"
+          pattern="[0-9 ]*" maxlength="7" placeholder="123456" required />
+      {/if}
       {#if error}<p class="error" role="alert">{error}</p>{/if}
       <button class="btn" type="submit" disabled={busy}>{busy ? 'Opening…' : 'Open terminal'}</button>
     </form>
@@ -98,6 +107,7 @@
     padding: 0.55rem 0.7rem; font-size: 1rem; outline: none; max-width: 360px; min-height: 40px;
   }
   input:focus { border-color: #7c84ff; }
+  input.code { max-width: 160px; letter-spacing: 0.2em; font-variant-numeric: tabular-nums; }
   .btn {
     align-self: flex-start; margin-top: 0.4rem; min-height: 40px; padding: 0 1rem;
     background: #4f46e5; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;

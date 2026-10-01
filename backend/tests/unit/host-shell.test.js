@@ -7,9 +7,10 @@ const { makeTestDbPath, cleanupTestDb } = require('../helpers/db');
 const db = require('../../src/db');
 const pw = require('../../src/auth/password');
 const hs = require('../../src/host-shell');
+const totp = require('../../src/auth/totp');
 const { installAuth } = require('../../src/auth/install');
 
-const ENV = ['GANTRY_PASSWORD_HASH', 'GANTRY_API_TOKEN', 'GANTRY_HOST_SHELL', 'GANTRY_HOST_SHELL_USER', 'GANTRY_HOST_SHELL_DIR'];
+const ENV = ['GANTRY_PASSWORD_HASH', 'GANTRY_API_TOKEN', 'GANTRY_HOST_SHELL', 'GANTRY_HOST_SHELL_USER', 'GANTRY_HOST_SHELL_DIR', 'GANTRY_TOTP_SECRET'];
 const KEYBLOB = 'AAAAC3NzaC1lZDI1NTE5AAAAIHostKeyBlobForTestsOnly0000000000000000';
 let app, dbPath, dir, HASH;
 
@@ -49,8 +50,8 @@ async function sessionCookie() {
     .send({ username: 'admin', password: 'hunter2hunter2' });
   return res.headers['set-cookie'][0].split(';')[0];
 }
-const unlock = (jar, password) => request(app).post('/api/host-shell/unlock').set(H).set('Cookie', jar || '')
-  .set('Content-Type', 'application/json').send({ password });
+const unlock = (jar, password, code) => request(app).post('/api/host-shell/unlock').set(H).set('Cookie', jar || '')
+  .set('Content-Type', 'application/json').send({ password, code });
 
 describe('availability', () => {
   const auth = { passwordRequired: true, misconfigured: false };
@@ -151,5 +152,60 @@ describe('/api/host-shell', () => {
     expect(res.body.detail).toMatch(/needs a login/);
     const { refuseHostUpgrade } = require('../../src/api/host-shell');
     expect(refuseHostUpgrade({ url: '/ws/host?ticket=abc', headers: {} })).toBe(404);
+  });
+});
+
+describe('authenticator code (GANTRY_TOTP_SECRET)', () => {
+  let secret;
+  beforeEach(() => { enable(); secret = totp.newSecret(); process.env.GANTRY_TOTP_SECRET = secret; });
+
+  it('status says a code is needed; without the secret it is not', async () => {
+    const jar = await sessionCookie();
+    expect((await request(app).get('/api/host-shell/status').set(H).set('Cookie', jar)).body.totp_required).toBe(true);
+    delete process.env.GANTRY_TOTP_SECRET;
+    expect((await request(app).get('/api/host-shell/status').set(H).set('Cookie', jar)).body.totp_required).toBe(false);
+  });
+
+  it('unlock needs password AND current code; one message for either failing', async () => {
+    const jar = await sessionCookie();
+    const noCode = await unlock(jar, 'hunter2hunter2');
+    const badCode = await unlock(jar, 'hunter2hunter2', '000000');
+    const badPw = await unlock(jar, 'wrong', totp.codeAt(secret));
+    for (const r of [noCode, badCode, badPw]) {
+      expect(r.status).toBe(401);
+      expect(r.body.detail).toBe('wrong password or code');
+    }
+    const ok = await unlock(jar, 'hunter2hunter2', totp.codeAt(secret));
+    expect(ok.status).toBe(200);
+    expect(ok.body.ticket).toMatch(/^[0-9a-f]{48}$/);
+  });
+
+  it('a used code cannot be replayed', async () => {
+    const jar = await sessionCookie();
+    const code = totp.codeAt(secret);
+    expect((await unlock(jar, 'hunter2hunter2', code)).status).toBe(200);
+    expect((await unlock(jar, 'hunter2hunter2', code)).status).toBe(401);
+  });
+
+  it('a wrong password does not use up the current code', async () => {
+    const jar = await sessionCookie();
+    const code = totp.codeAt(secret);
+    expect((await unlock(jar, 'wrong', code)).status).toBe(401);
+    expect((await unlock(jar, 'hunter2hunter2', code)).status).toBe(200);
+  });
+
+  it('wrong codes count toward the shared throttle', async () => {
+    const jar = await sessionCookie();
+    for (let i = 0; i < 5; i++) await unlock(jar, 'hunter2hunter2', '000000');
+    expect((await unlock(jar, 'hunter2hunter2', totp.codeAt(secret))).status).toBe(429);
+  });
+
+  it('a malformed secret fails closed with a fix-it reason', async () => {
+    process.env.GANTRY_TOTP_SECRET = 'not-base32!';
+    const jar = await sessionCookie();
+    const st = (await request(app).get('/api/host-shell/status').set(H).set('Cookie', jar)).body;
+    expect(st.available).toBe(false);
+    expect(st.reason).toMatch(/GANTRY_TOTP_SECRET is malformed/);
+    expect((await unlock(jar, 'hunter2hunter2', '123456')).status).toBe(409);
   });
 });
