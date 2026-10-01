@@ -187,6 +187,7 @@ How it is fenced in:
 - The script generates a dedicated key and never touches your own keys. In `authorized_keys` it is restricted to `from="127.0.0.1,::1"` with forwarding off, so a copy of it is useless on any other machine.
 - The host's SSH key is pinned at setup. If it ever changes, Gantry refuses to connect.
 - Re-typing the password buys a single-use ticket that expires after 60 seconds. It is bound to your browser session, and the MCP server's API token cannot get one.
+- Optionally, it also needs a 6-digit code from an authenticator app (TOTP). `scripts/set-password.sh` asks whether you will use the host terminal and offers to set this up: it shows a QR code, and saves the secret only after you type a matching code. Codes are computed offline on the phone and the server, so this works entirely inside your tailnet. Each code works once. `--totp` sets it up later, and `--disable-totp` removes it.
 - Sessions close after 30 minutes without input (`GANTRY_HOST_SHELL_IDLE_MINUTES`). Opens, closes and wrong passwords are logged by the backend.
 
 sshd must allow public-key login for your user. Password login can stay off. `scripts/enable-host-shell.sh --disable` removes the key and switches the feature off.
@@ -224,6 +225,7 @@ Environment (set in `docker-compose.yml`):
 | `GANTRY_HOST_SHELL_USER` | empty | User the host shell logs in as; set by the script |
 | `GANTRY_HOST_SHELL_PORT` | `22` | This machine's sshd port |
 | `GANTRY_HOST_SHELL_IDLE_MINUTES` | `30` | Close a host shell after this long without input |
+| `GANTRY_TOTP_SECRET` | empty | Authenticator (TOTP) secret; when set, opening the host terminal also needs a 6-digit code |
 | `GANTRY_ALLOWED_HOSTS` | empty | Extra names Gantry may be opened on, comma-separated, `*.suffix` allowed, `*` disables the check |
 
 Ports used on the host: `80` (and `443` with HTTPS) for Caddy, `2019` Caddy admin, `3001` backend, `53/udp` on the Tailscale IP when the responder is on.

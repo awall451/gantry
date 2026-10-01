@@ -7,7 +7,8 @@
 // Guard rails, in order:
 //  1. /ws/host goes through the normal upgrade guard (Host, Origin, session).
 //  2. It additionally needs a one-time ticket from POST /api/host-shell/unlock,
-//     which re-checks the password (shared throttle) and binds the ticket to
+//     which re-checks the password, plus an authenticator code when
+//     GANTRY_TOTP_SECRET is set (shared throttle), and binds the ticket to
 //     the caller's session cookie. Tickets live 60 s and are single use; the
 //     MCP's Bearer token can never get one.
 //  3. SSH uses a dedicated key that authorized_keys limits to
@@ -18,6 +19,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('ssh2');
+const { isValidSecret } = require('./auth/totp');
 
 const TICKET_TTL_MS = 60_000;
 const tickets = new Map(); // ticket -> { sessionHash, expires }
@@ -32,6 +34,8 @@ function hostShellConfig(env = process.env) {
     keyPath: path.join(dir, 'id_ed25519'),
     knownHostsPath: path.join(dir, 'known_hosts'),
     idleMs: (Number(env.GANTRY_HOST_SHELL_IDLE_MINUTES) > 0 ? Number(env.GANTRY_HOST_SHELL_IDLE_MINUTES) : 30) * 60_000,
+    // Second factor for unlock (authenticator app). Empty = password only.
+    totpSecret: String(env.GANTRY_TOTP_SECRET || '').trim(),
   };
 }
 
@@ -43,7 +47,9 @@ function availability(cfg, auth) {
   if (!cfg.user) return no('GANTRY_HOST_SHELL_USER is not set. Run scripts/enable-host-shell.sh.');
   if (!fs.existsSync(cfg.keyPath)) return no('No SSH key found. Run scripts/enable-host-shell.sh.');
   if (knownHostKeys(cfg.knownHostsPath).size === 0) return no('No pinned host key. Run scripts/enable-host-shell.sh.');
-  return { enabled: true, available: true, reason: null, user: cfg.user };
+  // A set-but-broken secret fails closed, like a malformed password hash.
+  if (cfg.totpSecret && !isValidSecret(cfg.totpSecret)) return no('GANTRY_TOTP_SECRET is malformed. Run scripts/set-password.sh --totp to set it up again.');
+  return { enabled: true, available: true, reason: null, user: cfg.user, totp_required: !!cfg.totpSecret };
 }
 
 // Base64 key blobs from an OpenSSH known_hosts file (any key type).
