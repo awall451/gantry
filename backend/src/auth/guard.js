@@ -11,7 +11,7 @@
 //  - Login (opt-in): when GANTRY_PASSWORD_HASH is set, /api/* and /ws* need a
 //    session cookie or `Authorization: Bearer $GANTRY_API_TOKEN`.
 const crypto = require('crypto');
-const { loadSettings, resolveDomains } = require('../settings');
+const { loadSettings, resolveDomains, onSettingsSaved } = require('../settings');
 const { isValidHash } = require('./password');
 const sessions = require('./sessions');
 
@@ -37,7 +37,11 @@ function config(env = process.env) {
 function readCookie(header, name) {
   for (const part of String(header || '').split(';')) {
     const i = part.indexOf('=');
-    if (i > 0 && part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+    if (i > 0 && part.slice(0, i).trim() === name) {
+      // Untrusted input: a bad %-escape must read as "no cookie", not throw
+      // (a throw in the upgrade handler would take the process down).
+      try { return decodeURIComponent(part.slice(i + 1).trim()); } catch { return null; }
+    }
   }
   return null;
 }
@@ -57,13 +61,23 @@ function allowedHostnames(settings) {
   return names;
 }
 
-function hostAllowed(hostHeader, { settings = loadSettings(), cfg = config() } = {}) {
+// The names only change when settings are saved, so they are computed once
+// and dropped by onSettingsSaved, not re-read from SQLite on every request.
+let cachedNames = null;
+onSettingsSaved(() => { cachedNames = null; });
+function currentNames() {
+  if (!cachedNames) cachedNames = allowedHostnames(loadSettings());
+  return cachedNames;
+}
+function resetHostCache() { cachedNames = null; }
+
+function hostAllowed(hostHeader, { names = currentNames(), cfg = config() } = {}) {
   if (cfg.extraHosts.includes('*')) return true;
   const h = hostname(hostHeader);
   if (!h) return false;
   if (IPV4.test(h) || h.startsWith('[')) return true;
   if (h === 'localhost' || h.endsWith('.localhost')) return true;
-  if (allowedHostnames(settings).has(h)) return true;
+  if (names.has(h)) return true;
   return cfg.extraHosts.some(x => (x.startsWith('*.') ? h.endsWith(x.slice(1)) : h === x));
 }
 
@@ -122,5 +136,5 @@ function refuseUpgrade(req) {
 
 module.exports = {
   COOKIE, config, readCookie, hostAllowed, originOk, isAuthenticated,
-  hostGuard, originGuard, requireAuth, refuseUpgrade,
+  hostGuard, originGuard, requireAuth, refuseUpgrade, resetHostCache,
 };

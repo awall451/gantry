@@ -1,3 +1,4 @@
+import { loginUrl } from './auth';
 import { writable } from 'svelte/store';
 
 export const wsMessage = writable(null);
@@ -39,10 +40,27 @@ export function connectWs() {
   });
 
   socket.addEventListener('close', () => {
-    if (!stopped) reconnectTimer = setTimeout(connectWs, 3000);
+    if (!stopped) reconnectTimer = setTimeout(reconnectOrLogin, 3000);
   });
 
   socket.addEventListener('error', () => socket.close());
+}
+
+// A refused handshake looks like any other close. Before retrying, ask
+// whether the session is still good: if it expired (or the password was
+// changed), go to the login page instead of retrying every 3 s forever.
+// Backend unreachable → keep retrying as before.
+export async function reconnectOrLogin(f = fetch) {
+  if (stopped) return;
+  try {
+    const res = await f('/api/auth/me');
+    if (res.status === 401) {
+      stopped = true;
+      if (typeof location !== 'undefined') location.assign(loginUrl(location.pathname + location.search));
+      return;
+    }
+  } catch {}
+  if (!stopped) connectWs();
 }
 
 // Logout: close for good (no reconnect loop against a socket that now 401s).

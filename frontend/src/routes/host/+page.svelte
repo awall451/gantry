@@ -34,10 +34,18 @@
     }
     connected = true;
     await tick();
-    session = await openTerminal(termEl,
-      ({ cols, rows }) => `/ws/host?ticket=${encodeURIComponent(body.ticket)}&cols=${cols}&rows=${rows}`,
-      { onClose: () => { connected = false; session = null; } });
-    busy = false;
+    try {
+      session = await openTerminal(termEl,
+        ({ cols, rows }) => `/ws/host?ticket=${encodeURIComponent(body.ticket)}&cols=${cols}&rows=${rows}`,
+        // Server ended it (exit, idle timeout): dispose this xterm so the next
+        // unlock starts in an empty element instead of stacking below it.
+        { onClose: handle => { handle.close(); session = null; connected = false; } });
+    } catch (e) {
+      connected = false;
+      error = `Could not start the terminal: ${e?.message || e}`;
+    } finally {
+      busy = false;
+    }
   }
 
   function disconnect() {

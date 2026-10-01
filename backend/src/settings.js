@@ -93,8 +93,14 @@ function validate(patch) {
   return { ok: Object.keys(errors).length === 0, errors };
 }
 
+const savedListeners = [];
+// Callers that cache something derived from settings (the Host allowlist)
+// register here to be told when to drop it.
+function onSettingsSaved(fn) { savedListeners.push(fn); }
+
 function saveSettings(patch) {
   for (const [key, value] of Object.entries(patch)) setSetting(key, value);
+  for (const fn of savedListeners) fn();
   return loadSettings();
 }
 
@@ -105,4 +111,4 @@ function resolveDomains(settings) {
   return domains;
 }
 
-module.exports = { DEFAULTS, loadSettings, validate, saveSettings, resolveDomains };
+module.exports = { DEFAULTS, loadSettings, validate, saveSettings, resolveDomains, onSettingsSaved };

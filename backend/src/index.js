@@ -124,6 +124,15 @@ execWss.on('connection', async (ws, _req, containerId) => {
 
 // Route WebSocket upgrades by path
 server.on('upgrade', (req, socket, head) => {
+  // Nothing in a handshake may crash the process: refuse instead.
+  try { routeUpgrade(req, socket, head); }
+  catch (err) {
+    console.error(`[ws] upgrade failed: ${err.message}`);
+    socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
+  }
+});
+
+function routeUpgrade(req, socket, head) {
   const refused = authGuard.refuseUpgrade(req);
   if (refused) {
     const text = { 400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden' }[refused];
@@ -150,7 +159,7 @@ server.on('upgrade', (req, socket, head) => {
       wss.emit('connection', ws, req);
     });
   }
-});
+}
 
 hostWss.on('connection', async (ws, req) => {
   const cfg = hostShell.hostShellConfig();
@@ -166,11 +175,25 @@ hostWss.on('connection', async (ws, req) => {
   };
   const touch = () => { clearTimeout(idle); idle = setTimeout(() => { const m = cfg.idleMs / 60000; close(`closed after ${m} minute${m === 1 ? '' : 's'} without input`); }, cfg.idleMs); };
 
+  // Listen for the browser leaving *before* the SSH handshake: a tab closed
+  // mid-connect must not leave a shell running until the idle timer.
+  let browserGone = false;
+  ws.on('close', () => {
+    browserGone = true;
+    close();
+    if (conn) console.log(`[host-shell] closed for ${who} after ${Math.round((Date.now() - started) / 1000)}s`);
+  });
+
   try {
     ({ conn, stream } = await hostShell.openShell(cfg, size));
   } catch (err) {
     console.error(`[host-shell] ssh ${cfg.user}@${cfg.host}:${cfg.port} failed: ${err.message}`);
     return close(`could not open a shell: ${err.message}`);
+  }
+  if (browserGone) {
+    stream.end(); conn.end();
+    console.log(`[host-shell] ${who} left before the shell opened; closed it`);
+    return;
   }
   console.log(`[host-shell] opened ${cfg.user}@${cfg.host} for ${who}`);
   touch();
@@ -192,10 +215,6 @@ hostWss.on('connection', async (ws, req) => {
       } catch {}
     }
     stream.write(data);
-  });
-  ws.on('close', () => {
-    close();
-    console.log(`[host-shell] closed for ${who} after ${Math.round((Date.now() - started) / 1000)}s`);
   });
 });
 
