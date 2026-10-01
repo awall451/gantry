@@ -5,6 +5,7 @@ const db = require('../../src/db');
 const pw = require('../../src/auth/password');
 const guard = require('../../src/auth/guard');
 const { installAuth } = require('../../src/auth/install');
+const settings = require('../../src/settings');
 
 const ENV = ['GANTRY_PASSWORD_HASH', 'GANTRY_USERNAME', 'GANTRY_API_TOKEN', 'GANTRY_ALLOWED_HOSTS', 'GANTRY_SESSION_TTL_HOURS'];
 const TOKEN = 'a'.repeat(40);
@@ -17,6 +18,7 @@ beforeEach(() => {
   process.env.DB_PATH = dbPath;
   for (const k of ENV) delete process.env[k];
   pw.resetAttempts();
+  guard.resetHostCache(); // each test has its own DB
   app = express();
   app.use(express.json());
   installAuth(app);
@@ -149,13 +151,24 @@ describe('Host allowlist (DNS rebinding)', () => {
     expect((await request(app).get('/api/ping').set('Host', 'other.lan')).status).toBe(200);
   });
 
-  it('follows settings: the Tailscale domain and gantry.<domain> once enabled', async () => {
-    db.setSetting('tailscale.enabled', 'true');
-    db.setSetting('tailscale.domain', 'lab.example.com');
+  it('follows settings: the Tailscale domain and gantry.<domain> once saved', async () => {
+    expect((await request(app).get('/api/ping').set('Host', 'lab.example.com')).status).toBe(400);
+    settings.saveSettings({ 'tailscale.enabled': true, 'tailscale.domain': 'lab.example.com' });
     for (const host of ['lab.example.com', 'gantry.lab.example.com']) {
       expect((await request(app).get('/api/ping').set('Host', host)).status, host).toBe(200);
     }
     expect((await request(app).get('/api/ping').set('Host', 'jellyfin.lab.example.com')).status).toBe(400);
+  });
+
+  it('caches the allowed names until settings are saved (no DB read per request)', async () => {
+    expect((await request(app).get('/api/ping').set(H)).status).toBe(200); // primes the cache
+    // A raw DB write bypasses saveSettings, so the cached set must not change...
+    db.setSetting('tailscale.enabled', 'true');
+    db.setSetting('tailscale.domain', 'lab.example.com');
+    expect((await request(app).get('/api/ping').set('Host', 'lab.example.com')).status).toBe(400);
+    // ...until a save drops it.
+    settings.saveSettings({});
+    expect((await request(app).get('/api/ping').set('Host', 'lab.example.com')).status).toBe(200);
   });
 });
 
@@ -171,6 +184,23 @@ describe('Origin check (cross-site requests)', () => {
     expect((await request(app).post('/api/containers/x/stop').set(H).set('Origin', 'http://gantry.localhost')).status).toBe(200);
     expect((await request(app).post('/api/containers/x/stop').set(H)).status).toBe(200);
     expect((await request(app).get('/api/ping').set(H).set('Origin', 'https://evil.example.com')).status).toBe(200);
+  });
+});
+
+describe('malformed cookies (untrusted input)', () => {
+  it('readCookie treats a bad %-escape as no cookie instead of throwing', () => {
+    expect(guard.readCookie('gantry_session=%', 'gantry_session')).toBeNull();
+    expect(guard.readCookie('a=1; gantry_session=%E0%A4%A', 'gantry_session')).toBeNull();
+    expect(guard.readCookie('gantry_session=ab%20cd', 'gantry_session')).toBe('ab cd');
+  });
+
+  it('a malformed session cookie is a 401, never a crash or a 500', async () => {
+    process.env.GANTRY_PASSWORD_HASH = HASH;
+    expect(() => guard.refuseUpgrade({ headers: { host: 'gantry.localhost', cookie: 'gantry_session=%' } })).not.toThrow();
+    expect(guard.refuseUpgrade({ headers: { host: 'gantry.localhost', cookie: 'gantry_session=%' } })).toBe(401);
+    expect((await request(app).get('/api/ping').set(H).set('Cookie', 'gantry_session=%')).status).toBe(401);
+    expect((await request(app).get('/api/auth/me').set(H).set('Cookie', 'gantry_session=%')).status).toBe(401);
+    expect((await request(app).post('/api/auth/logout').set(H).set('Cookie', 'gantry_session=%')).status).toBe(200);
   });
 });
 
