@@ -3,18 +3,19 @@
   import { openTerminal } from '$lib/terminal';
 
   let status = null;      // GET /api/host-shell/status
+  let username = '';      // Linux user on the host; the UI is never told it
   let password = '';
   let code = '';          // authenticator code, when status.totp_required
   let error = '';
   let busy = false;
   let connected = false;
-  let termEl, session, pwInput;
+  let termEl, session, userInput;
 
   onMount(async () => {
     const res = await fetch('/api/host-shell/status');
     status = res.ok ? await res.json() : { enabled: false };
     await tick();
-    pwInput?.focus();
+    userInput?.focus();
   });
 
   onDestroy(() => session?.close());
@@ -25,14 +26,14 @@
     busy = true; error = '';
     const res = await fetch('/api/host-shell/unlock', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(status.totp_required ? { password, code } : { password }),
+      body: JSON.stringify(status.totp_required ? { username, password, code } : { username, password }),
     });
     password = ''; code = '';
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       busy = false;
       error = res.status === 401
-        ? (status.totp_required ? 'Wrong password or code.' : 'Wrong password.')
+        ? (status.totp_required ? 'Wrong username, password or code.' : 'Wrong username or password.')
         : (body.detail || 'Could not open the terminal.');
       return;
     }
@@ -78,9 +79,12 @@
 {:else}
   {#if !connected}
     <form class="unlock" on:submit|preventDefault={unlock}>
-      <p>Opens a shell as <b>{status.user}</b> on this machine. Confirm your Gantry password{status.totp_required ? ' and the code from your authenticator app' : ''} to continue.</p>
-      <label for="hpw">Password</label>
-      <input id="hpw" type="password" bind:this={pwInput} bind:value={password} autocomplete="current-password" required />
+      <p>Opens a shell on this machine. Enter the Linux username it runs as, your Gantry password{status.totp_required ? ', and the code from your authenticator app' : ''}.</p>
+      <label for="huser">Linux username</label>
+      <input id="huser" bind:this={userInput} bind:value={username} autocomplete="off"
+        autocapitalize="none" autocorrect="off" spellcheck="false" required />
+      <label for="hpw">Gantry password</label>
+      <input id="hpw" type="password" bind:value={password} autocomplete="current-password" required />
       {#if status.totp_required}
         <label for="hcode">Authenticator code</label>
         <input id="hcode" class="code" bind:value={code} inputmode="numeric" autocomplete="one-time-code"

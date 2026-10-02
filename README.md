@@ -179,7 +179,7 @@ scripts/enable-host-shell.sh     # run as the user the shell should belong to
 docker compose up -d
 ```
 
-**Host terminal** then appears under System. Opening it asks for your password again, even when you are logged in.
+**Host terminal** then appears under System. Opening it asks for the Linux username it runs as and your password again, even when you are logged in. The page never shows the username, so someone who gets into Gantry still has to know it.
 
 How it is fenced in:
 

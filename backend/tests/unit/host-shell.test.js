@@ -50,8 +50,9 @@ async function sessionCookie() {
     .send({ username: 'admin', password: 'hunter2hunter2' });
   return res.headers['set-cookie'][0].split(';')[0];
 }
-const unlock = (jar, password, code) => request(app).post('/api/host-shell/unlock').set(H).set('Cookie', jar || '')
-  .set('Content-Type', 'application/json').send({ password, code });
+// The Linux user in these tests is 'alice' (see enable()).
+const unlock = (jar, password, code, username = 'alice') => request(app).post('/api/host-shell/unlock').set(H).set('Cookie', jar || '')
+  .set('Content-Type', 'application/json').send({ username, password, code });
 
 describe('availability', () => {
   const auth = { passwordRequired: true, misconfigured: false };
@@ -66,7 +67,9 @@ describe('availability', () => {
       expect(r.available).toBe(false);
       expect(r.reason).toMatch(/needs a login/);
     }
-    expect(hs.availability(cfg, auth)).toMatchObject({ available: true, user: 'u' });
+    const ok = hs.availability(cfg, auth);
+    expect(ok.available).toBe(true);
+    expect(ok).not.toHaveProperty('user'); // unlock asks for it; the UI never learns it
   });
 
   it('names the missing piece: user, key, pinned host key', () => {
@@ -116,7 +119,7 @@ describe('/api/host-shell', () => {
     enable();
     const jar = await sessionCookie();
     expect((await request(app).get('/api/host-shell/status').set(H).set('Cookie', jar)).body)
-      .toMatchObject({ enabled: true, available: true, user: 'alice' });
+      .toEqual({ enabled: true, available: true, reason: null, totp_required: false }); // no username
     expect((await unlock(jar, 'wrong')).status).toBe(401);
     const ok = await unlock(jar, 'hunter2hunter2');
     expect(ok.status).toBe(200);
@@ -155,6 +158,29 @@ describe('/api/host-shell', () => {
   });
 });
 
+describe('Linux username at unlock', () => {
+  beforeEach(() => enable());
+
+  it('is required, compared exactly, and fails with the same message as a wrong password', async () => {
+    const jar = await sessionCookie();
+    const wrongUser = await unlock(jar, 'hunter2hunter2', undefined, 'bob');
+    const caseDiff = await unlock(jar, 'hunter2hunter2', undefined, 'Alice');
+    const missing = await unlock(jar, 'hunter2hunter2', undefined, '');
+    const wrongPw = await unlock(jar, 'wrong', undefined, 'alice');
+    for (const r of [wrongUser, caseDiff, missing, wrongPw]) {
+      expect(r.status).toBe(401);
+      expect(r.body.detail).toBe('wrong username or password');
+    }
+    expect((await unlock(jar, 'hunter2hunter2', undefined, ' alice ')).status).toBe(200); // surrounding spaces ok
+  });
+
+  it('wrong usernames count toward the shared throttle', async () => {
+    const jar = await sessionCookie();
+    for (let i = 0; i < 5; i++) await unlock(jar, 'hunter2hunter2', undefined, 'root');
+    expect((await unlock(jar, 'hunter2hunter2')).status).toBe(429);
+  });
+});
+
 describe('authenticator code (GANTRY_TOTP_SECRET)', () => {
   let secret;
   beforeEach(() => { enable(); secret = totp.newSecret(); process.env.GANTRY_TOTP_SECRET = secret; });
@@ -173,7 +199,7 @@ describe('authenticator code (GANTRY_TOTP_SECRET)', () => {
     const badPw = await unlock(jar, 'wrong', totp.codeAt(secret));
     for (const r of [noCode, badCode, badPw]) {
       expect(r.status).toBe(401);
-      expect(r.body.detail).toBe('wrong password or code');
+      expect(r.body.detail).toBe('wrong username, password or code');
     }
     const ok = await unlock(jar, 'hunter2hunter2', totp.codeAt(secret));
     expect(ok.status).toBe(200);
@@ -187,10 +213,11 @@ describe('authenticator code (GANTRY_TOTP_SECRET)', () => {
     expect((await unlock(jar, 'hunter2hunter2', code)).status).toBe(401);
   });
 
-  it('a wrong password does not use up the current code', async () => {
+  it('a wrong password or username does not use up the current code', async () => {
     const jar = await sessionCookie();
     const code = totp.codeAt(secret);
     expect((await unlock(jar, 'wrong', code)).status).toBe(401);
+    expect((await unlock(jar, 'hunter2hunter2', code, 'bob')).status).toBe(401);
     expect((await unlock(jar, 'hunter2hunter2', code)).status).toBe(200);
   });
 
