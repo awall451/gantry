@@ -3,7 +3,6 @@
   import { api } from '$lib/api';
   import { settings, applyServerPayload, loadSettings } from '$lib/settings';
   import { auth } from '$lib/auth';
-  import About from '$lib/components/About.svelte';
 
   // Local form state — edited freely, written back in one PUT per section.
   let form = null;
@@ -247,8 +246,6 @@
     {/if}
   </section>
 {/if}
-
-<About />
 
 <style>
   h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 1.5rem; }

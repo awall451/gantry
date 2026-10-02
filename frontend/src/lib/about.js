@@ -1,5 +1,5 @@
-// Single place for the project's outward links and version, so the About
-// block, and anything else that needs them, never hardcode a URL.
+// Single place for the project's outward links and version, so the footer,
+// and anything else that needs them, never hardcode a URL.
 import pkg from '../../package.json';
 
 export const about = {

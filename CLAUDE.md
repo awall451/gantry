@@ -174,7 +174,7 @@ Two critical implementation details:
 - `lib/api.js` — fetch wrapper for all REST endpoints
 - `lib/terminal.js` — `openTerminal(el, path)`: xterm + fit addon + resize protocol over a WS; used by the container Terminal tab and `/host`
 - `lib/auth.js` — login store: `checkAuth`, `login`, `logout`, `safeReturnTo`, `loginUrl`
-- `lib/about.js` — version (from `package.json`), repo, licence and Ko-fi support URLs; rendered by `lib/components/About.svelte` at the bottom of Settings. The only place those links live
+- `lib/about.js` — version (from `package.json`), repo, licence and Ko-fi support URLs; rendered by `lib/components/Footer.svelte`, a split footer (version · licence left, GitHub · Ko-fi right) at the bottom of every page. The only place those links live
 - `lib/settings.js` — settings store + `hostsFor` / `primaryUrl` / `applyServerPayload` / `loadSettings`
 - `lib/chart-tooltip.js` — Chart.js helpers: `registerSideTooltip` (tooltip at plot top, opposite the cursor) and `hideTooltipOnTouchEnd` plugin (touch: tap = click only, drag shows values, lift hides — Chart.js defers events a frame and replays the last one on update, so a naive hide-on-touchend does not work). Use both on every chart
 - `lib/components/ContainerCard.svelte` — expandable horizontal row (click to expand detail panel)
