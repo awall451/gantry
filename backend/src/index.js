@@ -235,7 +235,7 @@ server.listen(PORT, () => {
   else console.log(auth.passwordRequired ? `[auth] login required (user "${auth.username}")` : '[auth] no GANTRY_PASSWORD_HASH set: the UI and API are open to anyone who can reach them');
   if ((process.env.GANTRY_API_TOKEN || '').trim() && !auth.apiToken) console.error('[auth] GANTRY_API_TOKEN ignored: use at least 32 characters');
   const hs = hostShell.availability(hostShell.hostShellConfig(), auth);
-  if (hs.enabled) console.log(hs.available ? `[host-shell] enabled for ${hs.user}` : `[host-shell] enabled but unavailable: ${hs.reason}`);
+  if (hs.enabled) console.log(hs.available ? `[host-shell] enabled for ${hostShell.hostShellConfig().user}` : `[host-shell] enabled but unavailable: ${hs.reason}`);
   startWatcher();
   startLogTail();
   startStatsRecorder();

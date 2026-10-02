@@ -7,8 +7,9 @@
 // Guard rails, in order:
 //  1. /ws/host goes through the normal upgrade guard (Host, Origin, session).
 //  2. It additionally needs a one-time ticket from POST /api/host-shell/unlock,
-//     which re-checks the password, plus an authenticator code when
-//     GANTRY_TOTP_SECRET is set (shared throttle), and binds the ticket to
+//     which needs the Linux username (never sent to the UI), the password
+//     again, plus an authenticator code when GANTRY_TOTP_SECRET is set
+//     (shared throttle), and binds the ticket to
 //     the caller's session cookie. Tickets live 60 s and are single use; the
 //     MCP's Bearer token can never get one.
 //  3. SSH uses a dedicated key that authorized_keys limits to
@@ -49,7 +50,8 @@ function availability(cfg, auth) {
   if (knownHostKeys(cfg.knownHostsPath).size === 0) return no('No pinned host key. Run scripts/enable-host-shell.sh.');
   // A set-but-broken secret fails closed, like a malformed password hash.
   if (cfg.totpSecret && !isValidSecret(cfg.totpSecret)) return no('GANTRY_TOTP_SECRET is malformed. Run scripts/set-password.sh --totp to set it up again.');
-  return { enabled: true, available: true, reason: null, user: cfg.user, totp_required: !!cfg.totpSecret };
+  // The username is deliberately not returned: unlock asks for it.
+  return { enabled: true, available: true, reason: null, totp_required: !!cfg.totpSecret };
 }
 
 // Base64 key blobs from an OpenSSH known_hosts file (any key type).
