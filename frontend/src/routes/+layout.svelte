@@ -4,6 +4,7 @@
   import { loadSettings, applyServerPayload } from '$lib/settings';
   import { auth, checkAuth, logout, loginUrl } from '$lib/auth';
   import { goto } from '$app/navigation';
+  import Footer from '$lib/components/Footer.svelte';
   import { page } from '$app/stores';
 
   // The app (sockets, settings, the chrome) starts only once the backend says
@@ -139,7 +140,8 @@
   </aside>
 
   <main>
-    <slot />
+    <div class="page"><slot /></div>
+    <Footer />
   </main>
 </div>
 {/if}
@@ -253,7 +255,11 @@
     width: 100%;
     transition: margin-left 0.2s ease;
     min-width: 0;
+    /* Column so the footer sits at the very bottom: after the content on long
+       pages, at the viewport bottom on short ones. */
+    display: flex; flex-direction: column;
   }
+  .page { flex: 1; }
 
   .collapsed main { margin-left: var(--sidebar-w-collapsed); }
 
